@@ -1,0 +1,1 @@
+gdal_rasterize -a loc_id -l GBD2016_analysis_final -where 'level = 3' 'J:/DATA/SHAPE_FILES/GBD_geographies/master/GBD_2016/master/shapefiles/GBD2016_analysis_final.shp' 'J:/temp/dccasey/temperature/data/rasterized_shapefiles/admin0_gpw_grid.tif'

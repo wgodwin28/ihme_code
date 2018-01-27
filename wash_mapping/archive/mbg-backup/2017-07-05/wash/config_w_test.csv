@@ -1,0 +1,40 @@
+indicator,w_test
+indicator_family,binomial
+keep_inla_files,FALSE
+fixed_effects,access
+fixed_effects_measures,mean
+gbd_fixed_effects,ldi_pc
+mbg_fixed_effects,
+samples,250
+time_stamp,TRUE
+mesh_s_max_edge,"c(2.5, 5)"
+mesh_s_offset,"c(1, 5)"
+mesh_t_knots,"c(1,6,11,16)"
+intercept_prior,0
+slots,20
+transform,inverse-logit
+ss_col,N
+yr_col,year
+spat_strat,qt
+temp_strat,prop
+n_folds,5
+stacked_fixed_effects,gam + gbm + lasso + ridge
+model_type,full
+use_inla_nugget,FALSE
+use_child_country_fes,FALSE
+use_inla_country_fes,FALSE
+year_list,c(2000:2015)
+yearload,annual
+withtag,FALSE
+datatag,
+n_stack_folds,5
+gbm_tc,3
+gbm_lr,0.005
+gbm_bf,0.75
+intstrat,eb
+constrain_children_0_inf,FALSE
+test_pct,5
+skiptoinla,FALSE
+skiptoinla_from_rundate,2017_06_16_17_22_04
+interval_mo,12
+use_share,FALSE

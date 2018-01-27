@@ -1,0 +1,23 @@
+indicator,w_imp
+indicator_family,binomial
+keep_inla_files,FALSE
+fixed_effects,access + aridity + distrivers + dmspntl + elevation + evi + irrigation + lstavg + pet + worldpop
+fixed_effects_measures,mean + mean + mean + mean + mean + median + mean + median + mean + total
+gbd_fixed_effects,ldi_pc
+mbg_fixed_effects,
+samples,250
+time_stamp,TRUE
+mesh_s_max_edge,"c(0.25, 5)"
+mesh_s_offset,"c(1, 5)"
+mesh_t_knots,"c(1,5,9,13,16)"
+intercept_prior,0
+slots,20
+transform,plogis(as.matrix(cell_all))
+ss_col,N
+yr_col,year
+spat_strat,qt
+temp_strat,prop
+n_folds,5
+child_stacker_models,"list(gam_results[[2]], gbm_results[[2]], rf_results[[2]], lasso[[2]], ridge[[2]], enet[[2]])"
+child_stacker_model_names,"c('gam', 'gbm', 'rf', 'lasso', 'ridge', 'enet')"
+stacked_fixed_effects,gam + gbm + lasso + ridge + enet

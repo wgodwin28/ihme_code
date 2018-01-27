@@ -1,0 +1,21 @@
+indicator,w_imp
+indicator_family,binomial
+keep_inla_files,FALSE
+fixed_effects,evi + lights_new + LST_day + LST_avg + total_pop + land_cover + cruts_pre + cruts_cld + cruts_dtr + cruts_frs + cruts_pet + cruts_tmn + cruts_tmp + cruts_tmx + cruts_vap + cruts_wet + urban_pct + fertility + access + irrigation + aridity + dist_rivers_lakes + elevation
+gbd_fixed_effects,
+mbg_fixed_effects,
+samples,1000
+time_stamp,TRUE
+mesh_s_max_edge,"c(0.25, 5)"
+mesh_s_offset,"c(1, 5)"
+intercept_prior,0
+slots,50
+transform,plogis(as.matrix(cell_all))
+ss_col,psu
+yr_col,start_year
+spat_strat,qt
+temp_strat,prop
+n_folds,0
+child_stacker_models,"list(gam_results[[2]], gbm_results[[2]])"
+child_stacker_model_names,"c('gam', 'gbm', 'rf')"
+stacked_fixed_effects,stacked_results

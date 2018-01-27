@@ -1,0 +1,7 @@
+cd C:\Users\adesh\Documents\WASH\jmp_files\stata\xls
+
+local files : dir "C:\Users\adesh\Documents\WASH\jmp_files\stata\xls" files "*.xls"
+foreach file in `files' {
+  import excel using `file', sheet("Tables_W") clear
+  export delimited using `file'.csv, novarnames nolabel replace
+}

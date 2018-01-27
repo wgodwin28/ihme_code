@@ -1,0 +1,26 @@
+indicator,w_unimp
+indicator_family,binomial
+keep_inla_files,FALSE
+fixed_effects,access + aridity + distrivers + dmspntl + elevation + evi + irrigation + lstavg + worldpop + distriverslakes + fertility + mapincidence + ghslurbanicity + crutspre + crutsard + crutsdtr + crutsfrs + crutspet + crutstmn + crutstmp + crutstmx + crutswet + growingseason + irrigation + lstday + lstdiurnaldiff + lstnight + nexndvi + tcb + tcw
+fixed_effects_measures,mean + mean + mean + mean + mean + median + mean + median + total + mean + mean + mean + mean + sum + mean + mean + sum + mean + mean + mean + mean + sum + mean + mean + median + median + median + mean + median + median
+gbd_fixed_effects,ldi_pc + pollution_indoor_total_prev
+mbg_fixed_effects,
+samples,250
+time_stamp,TRUE
+mesh_s_max_edge,"c(0.25, 5)"
+mesh_s_offset,"c(1, 5)"
+mesh_t_knots,"c(1,6,11,16)"
+intercept_prior,0
+slots,20
+transform,plogis(as.matrix(cell_all))
+ss_col,N
+yr_col,year
+spat_strat,qt
+temp_strat,prop
+n_folds,5
+stacked_fixed_effects,gam + gbm + lasso + ridge
+model_type,full
+use_inla_nugget,FALSE
+use_child_country_fes,FALSE
+use_inla_country_fes,FALSE
+raking,FALSE

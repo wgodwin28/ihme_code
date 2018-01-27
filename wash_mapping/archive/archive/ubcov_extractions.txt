@@ -1,0 +1,78 @@
+/***********************************************************************************************************
+ Author: Patrick Liu (pyliu@uw.edu)																		
+ Date: 7/13/2015
+ Project: ubCov
+ Purpose: Run Script
+																					
+***********************************************************************************************************/
+
+
+//////////////////////////////////
+// Setup
+//////////////////////////////////
+
+if c(os) == "Unix" {
+	local j "/home/j"
+	local h "/snfs2/HOME/`c(username)'"
+	set odbcmgr unixodbc
+}
+else if c(os) == "Windows" {
+	local j "J:"
+	local h "H:"
+}
+
+clear all
+set more off
+set obs 1
+
+// Settings
+local central_root "`j'/WORK/01_covariates/common/ubcov_central"
+// this is the codebook name
+local topics wash
+
+// Load functions
+cd "`central_root'"
+do "`central_root'/modules/extract/core/load.do"
+
+// Initialize the system
+/* 
+	Brings in the databases, after which you can run
+	extraction or sourcing functions like: new_topic_rows
+
+	You can view each of the loaded databases by running: get, *db* (eg. get, codebook)
+*/
+
+init, topics(`topics')
+
+// Run extraction
+/* Launches extract
+
+	Arguments:
+		- ubcov_id: The id of the codebook row
+	Optional:
+		 // General
+        - keep: Keeps all original survey variables (useful for checking)
+        - bypass: Skips the extraction check
+        - run_all: Loops through all ubcov_ids for the topic
+        // Value Mapping
+        - bypass_map: Skips the subnational/value mapping process
+        - store_vals: Stores unmapped values into a file (default location J:/WORK/01_covariates/common/ubcov_library/extract/topics/value_maps)
+        - store_vals_path: Stores unampped values into a (`path'/`topic'.csv)
+*/
+// local ubcov_ids 5698
+// run_extract `ubcov_ids'
+
+// this is how you run and save the output
+local outpath = "define save path here"
+// these ubcov ids are dynamic and they change based on how the google spreadhseet changes
+local array 5348 5349 5350 5351 5352 5353 5354 5355 5356 5357 5358 5359 5360 5361 5362 5363 5364 //all the ubcov_ids you want to run
+foreach number in `array'{
+	local i `number'
+	run_extract `i', bypass store_vals //keep	
+	tostring year_start, gen(year)
+	tostring year_end, gen(end_year)
+	local filename = survey_name + "_" + survey_module + "_" + ihme_loc_id + "_" + year + "_" + end_year
+	local filename = subinstr("`filename'", "/", "_",.)
+	cd 	`outpath'
+	save "`filename'", replace //add replace back when naming conventions are unique
+}

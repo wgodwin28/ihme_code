@@ -1,0 +1,21 @@
+indicator,sani_imp
+indicator_family,binomial
+keep_inla_files,FALSE
+fixed_effects,lights_new + urban_rural
+gbd_fixed_effects,
+mbg_fixed_effects,
+samples,100
+time_stamp,TRUE
+mesh_s_max_edge,"c(0.25, 5)"
+mesh_s_offset,"c(1, 5)"
+intercept_prior,0
+slots,50
+transform,plogis(as.matrix(cell_all))
+ss_col,psu
+yr_col,start_year
+spat_strat,qt
+temp_strat,prop
+n_folds,0
+child_stacker_models,"list(gam_results[[2]], gbm_results[[2]])"
+child_stacker_model_names,"c('gam', 'gbm', 'rf')"
+stacked_fixed_effects,stacked_results
