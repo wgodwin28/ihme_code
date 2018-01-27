@@ -1,0 +1,113 @@
+// File Name: smooth_thesis.do
+
+// File Purpose: Run smoothing code on water and sanitation data
+// Author: Leslie Mallinger
+// Date: 7/19/2011
+// Edited on: 6/15/2012
+
+// Additional Comments: 
+
+
+clear all
+macro drop _all
+set mem 500m
+set more off
+capture log close
+
+
+** create locals for relevant files and folders
+local input_folder "J:/Project/COMIND/Water and Sanitation/Smoothing/Spacetime Input"
+local output_folder "J:/Project/COMIND/Water and Sanitation/Smoothing/Spacetime Results"
+local graph_folder "J:/Project/COMIND/Water and Sanitation/Graphs/Smoothed"
+local smoothing_code_folder "J:/Usable/Tools/Smoothing"
+
+
+** load in smoothing code
+do "`smoothing_code_folder'/Smoothing_Program.ado"
+	
+
+** run smoothing step for water
+#delimit ;
+smoothing, 
+	dv(iwater_mean_logit) 
+	ivs(percenturban_logit ln_LDI_pc education_yrs_pc) 
+	sub_ivs(percenturban_logit ln_LDI_pc education_yrs_pc) 
+	reverse_transform_dv(invlogit) 
+	unique(iso3 year svy plot filename)
+	sub_unique(iso3 year svy plot filename iwater_sem)
+	smooth_age(0) 
+	start_year(1980)
+	end_year(2012)
+	zeta(0.9)
+	lambda(1)
+	input_data("`input_folder'/input_data_for_thesis.dta") 
+	store_data("`output_folder'") 
+	make_graphs(0)
+	model_name(w_thesis) 
+	outcome_type(prev) 
+	reg_type("reg")
+	sex("B")
+	smooth_super_regional(1)
+	pv(0)
+	subnational_data(1)
+	national_var(national)
+	sn_weight(0.2);
+#delimit cr
+
+** run smoothing step for sanitation
+#delimit ;
+smoothing, 
+	dv(isanitation_mean_logit) 
+	ivs(percenturban_logit ln_LDI_pc education_yrs_pc) 
+	sub_ivs(percenturban_logit ln_LDI_pc education_yrs_pc) 
+	reverse_transform_dv(invlogit) 
+	unique(iso3 year svy plot filename) 
+	sub_unique(iso3 year svy plot filename isanitation_sem)
+	smooth_age(0) 
+	start_year(1980)
+	end_year(2012)
+	zeta(0.9)
+	lambda(1)
+	input_data("`input_folder'/input_data_for_thesis.dta") 
+	store_data("`output_folder'") 
+	make_graphs(0)
+	model_name(s_thesis) 
+	outcome_type(prev) 
+	reg_type("reg")
+	sex("B")
+	smooth_super_regional(1)
+	pv(0)
+	subnational_data(1)
+	national_var(national)
+	sn_weight(0.2);
+#delimit cr
+
+** run smoothing step for combined
+#delimit ;
+smoothing, 
+	dv(icombined_mean_logit) 
+	ivs(percenturban_logit ln_LDI_pc education_yrs_pc) 
+	sub_ivs(percenturban_logit ln_LDI_pc education_yrs_pc) 
+	reverse_transform_dv(invlogit) 
+	unique(iso3 year svy plot filename) 
+	sub_unique(iso3 year svy plot filename icombined_sem)
+	smooth_age(0) 
+	start_year(1980)
+	end_year(2012)
+	zeta(0.9)
+	lambda(1)
+	input_data("`input_folder'/input_data_for_thesis.dta") 
+	store_data("`output_folder'") 
+	make_graphs(0)
+	model_name(c_thesis) 
+	outcome_type(prev) 
+	reg_type("reg")
+	sex("B")
+	smooth_super_regional(1)
+	pv(0)
+	subnational_data(1)
+	national_var(national)
+	sn_weight(0.2);
+#delimit cr
+
+capture log close 

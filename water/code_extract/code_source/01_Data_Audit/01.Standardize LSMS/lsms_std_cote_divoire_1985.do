@@ -1,0 +1,65 @@
+// File Name: lsms_std_cote d'ivoire_1985.do
+
+// File Purpose: Create standardized dataset with desired variables from LSMS Cote d'Ivoire 1985 survey
+// Author: Leslie Mallinger
+// Date: 5/20/2010
+// Edited on: 
+
+// Additional Comments: 
+
+
+clear all
+// macro drop _all
+set mem 500m
+set more off
+if "`c(os)'" == "Windows" {
+	global j "J:"
+}
+else {
+	global j "/home/j"
+	set odbcmgr unixodbc
+}
+
+
+** create locals for relevant files and folders
+local dat_folder_lsms "${j}/DATA/WB_LSMS"
+local dat_folder_lsms_merged "${data_folder}/LSMS/Merged Original Files"
+local codes_folder "${j}/Usable/Common Indicators/Country Codes"
+local dat_folder_country "CIV/1985"
+
+
+
+** household weights dataset
+	use "`dat_folder_lsms'/`dat_folder_country'/CIV_LSMS_1985_CORRECTIVEWEIGHTS.DTA", clear
+	keep clust nh hid allwaitn
+	tempfile hhweight
+	save `hhweight', replace
+		** hid
+	
+** household services
+	// water and sanitation
+	use "`dat_folder_lsms'/`dat_folder_country'/CIV_LSMS_1985_HOUSING_B.DTA", clear
+	tempfile hhserv
+	save `hhserv', replace
+		** hid
+
+** merge
+use `hhweight', clear
+merge 1:1 hid using `hhserv'
+drop _merge
+
+
+** apply labels
+label define wsource 1 "indoor faucet" 2 "water vendor" 3 "outside faucet" 4 "well with pump" ///
+	5 "well without pump" 6 "river, lake, spring, marsh" 7 "rain water" 8 "water truck" ///
+	9 "other (specify)"
+label values dwater wsource
+
+label define ttype 1 "flush toilet" 2 "pit latrine" 3 "no toilet" 4 "other (specify)"
+label values toilet ttype
+
+
+
+** save
+cd "`dat_folder_lsms_merged'"
+save "cote divoire_1985", replace

@@ -1,0 +1,158 @@
+// File Name: merge_files_chns.do
+
+// File Purpose: Create merged datasets with desired variables from CHNS China surveys
+// Author: Leslie Mallinger
+// Date: 5/21/2010
+// Edited on: 
+
+// Additional Comments: 
+
+
+clear all
+// macro drop _all
+set mem 500m
+set more off
+capture log close
+
+
+** create locals for relevant files and folders
+local log_folder "${code_folder}"
+local dat_folder_chns "J:\DATA\CHN\HEALTH_NUTRITION_SURVEY"
+local dat_folder_chns_merged "${data_folder}/CHNS/Merged Original Files"
+local codes_folder "J:/Usable/Common Indicators/Country Codes"
+
+
+
+** 1989
+	// water and sanitation dataset
+	use "`dat_folder_chns'/1989/USABLE_EXAM_CHNS_CHN_1989_HH14A.DTA", clear
+
+	// FIXME need to find weights, urban/rural, psu, etc.
+	
+	// add labels for water source, toilet type
+	label define l3 1 "underground water" 2 "open well" 3 "spring, river, lake" 4 "rainwater, snow" ///
+		5 "water factory" 6 "don't know"
+	label values l3 l3
+	
+	label define l5 1 "inside house, flush" 2 "inside house, no flush" 3 "outside house, flush" ///
+		4 "outside house, no flush" 5 "cement open pit" 6 "earth open pit" 7 "none" 8 "other (specify)"
+	label values l5 l5
+
+	// save
+	cd "`dat_folder_chns_merged'"
+	save "china_1989", replace
+	
+
+** 1991
+	// water and sanitation dataset
+	use "`dat_folder_chns'/1991/USABLE_EXAM_CHNS_CHN_1991_HH14.DTA", clear
+
+	// FIXME need to find weights, urban/rural, psu, etc.
+	
+	// add labels for water source, toilet type
+	label define l3 1 "underground water (> 5 meters)" 2 "open well (< 5 meters)" 3 "spring, river, lake" ///
+		4 "rainwater, snow" 5 "water plant" 6 "not known"
+	label values l3_91 l3
+	
+	label define l5 1 "flush, in house" 2 "no flush, in house" 3 "flush, outside house, public restroom" ///
+		4 "no flush, outside house, public restroom" 5 "cement open pit" 6 "earth open pit" 7 "none" 8 "other (specify)"
+	label values l5_91 l5
+	
+	// save
+	cd "`dat_folder_chns_merged'"
+	save "china_1991", replace
+	
+	
+** 1993
+	// household information AND water and sanitation dataset
+	use "`dat_folder_chns'/1993/USABLE_EXAM_CHNS_CHN_1993_HH15.DTA", clear
+	
+	// add labels for water source, toilet type
+	label define l3 1 "ground water (> 5 meters)" 2 "open well (< 5 meters)" 3 "spring, river, lake" ///
+		4 "ice/snow" 5 "water plant" 6 "not known"
+	label values l3_93 l3
+	
+	label define l5 1 "flush, in house" 2 "no flush, in house" 3 "flush, outside house, public restroom" ///
+		4 "no flush, outside house, public restroom" 5 "cement openpit" 6 "earth openpit" 7 "none" ///
+		8 "other (specify)"
+	label values l5_93 l5
+	
+	// save
+	cd "`dat_folder_chns_merged'"
+	save "china_1993", replace
+	
+	
+** 1997	
+	// household information AND water and sanitation
+	use "`dat_folder_chns'/1997/USABLE_EXAM_CHNS_CHN_1997_HH.DTA", clear
+	
+	// add labels for water source, toilet type
+	label define l3 1 "ground water (> 5 meters)" 2 "open well (< 5 meters)" 3 "spring, river, lake" ///
+		4 "ice/snow" 5 "water plant" 6 "other" 9 "unknown"
+	label values l3 l3
+	
+	label define l5 1 "flush, in-house" 2 "no flush, in-house" 3 "flush, outside house, public restroom" ///
+		4 "no flush, outside house, public restroom" 5 "cement openpit" 6 "earth openpit" 7 "none" ///
+		8 "other (specify)"
+	label values l5 l5
+		
+	// save
+	cd "`dat_folder_chns_merged'"
+	save "china_1997", replace
+	
+
+** 2000		
+	// household information AND water and sanitation
+	use "`dat_folder_chns'/2000/USABLE_EXAM_CHNS_CHN_2000_HH.DTA", clear
+	
+	// add labels for water source, toilet type
+	label define l3 1 "ground water (> 5 meters)" 2 "open well (< 5 meters)" 3 "spring, river, lake" ///
+		4 "ice/snow" 5 "water plant" 6 "other" 9 "unknown"
+	label values l3 l3
+	
+	label define l5 0 "no bathroom" 1 "flush, in-house" 2 "no flush, in-house" 3 "flush, outside house, public restroom" ///
+		4 "no flush, outside house, public restroom" 5 "cement openpit" 6 "earth openpit" 8 "other (specify)"
+	label values l5 l5
+		
+	// save
+	cd "`dat_folder_chns_merged'"
+	save "china_2000", replace
+	
+	
+** 2004
+	// house information AND water and sanitation
+	use "`dat_folder_chns'/2004/USABLE_EXAM_CHNS_CHN_2004_HH.DTA", clear
+	
+	// add labels for water source, toilet type
+	label define l3 1 "ground water (> 5 meters)" 2 "open well (<= 5 meters)" 3 "creek, spring, river, lake" ///
+		4 "ice/snow" 5 "water plant" 6 "other (specify)" 9 "unknown"
+	label values l3 l3
+	
+	label define l5 0 "no bathroom" 1 "flush, in-house" 2 "no flush, in-house" 3 "flush, outside house, public restroom" ///
+		4 "no flush, outside house, public restroom" 5 "cement openpit" 6 "earth openpit" 8 "other (specify)"
+	label values l5 l5
+	
+	// save
+	cd "`dat_folder_chns_merged'"
+	save "china_2004", replace
+
+
+** 2006
+	// house information AND water and sanitation
+	use "`dat_folder_chns'/2006/USABLE_EXAM_CHNS_CHN_2006_HH.DTA", clear
+	
+	// add labels for water source, toilet type
+	label define l3 1 "ground water (> 5 meters)" 2 "open well (<= 5 meters)" 3 "creek, spring, river, lake" ///
+		4 "ice/snow" 5 "water plant" 6 "other (specify)" 9 "unknown"
+	label values l3 l3
+	
+	label define l5 0 "no bathroom" 1 "flush, in-house" 2 "no flush, in-house" 3 "flush, outside house, public restroom" ///
+		4 "no flush, outside house, public restroom" 5 "cement openpit" 6 "earth openpit" 8 "other (specify)"
+	label values l5 l5
+	
+	// save
+	cd "`dat_folder_chns_merged'"
+	save "china_2006", replace
+
+
+capture log close

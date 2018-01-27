@@ -1,0 +1,92 @@
+// File Name: census_std_mexico_2010.do
+
+// File Purpose: Create standardized dataset with desired variables from 2010 Mexico Census
+// Author: Leslie Mallinger
+// Date: 7/14/2011
+// Edited on: 
+
+// Additional Comments: 
+
+
+clear all
+macro drop _all
+set mem 500m
+set more off
+capture log close
+capture restore, not
+
+
+** create locals for relevant files and folders
+local log_folder "J:/Project/COMIND/Water and Sanitation/Data Audit/Code/02.Standardize Other Surveys"
+local dat_folder "J:\DATA\MEX\CENSUS\2010"
+local dat_folder_other_merged "J:/Project/COMIND/Water and Sanitation/Data Audit/Data/Other/Merged Original Files"
+local codes_folder "J:/Usable/Common Indicators/Country Codes"
+
+
+
+** water, sanitation dataset
+	local filenames: dir "`dat_folder'" files "MEX_POPULATION_AND_HOUSING_CENSUS_2010_HOUSEHOLDS_*.dta", respectcase
+	local obsnum = 1
+	foreach f of local filenames {
+		di "`f'"
+		use disagu drenaje factor upm using "`dat_folder'/`f'", clear
+		tempfile file_`obsnum'
+		save `file_`obsnum'', replace
+	}
+	forvalues i = 1/`obsnum' {
+		if `i' == 1 {
+			use `file_`obsnum'', clear
+		}
+		else {
+			append using `file_obsnum''
+		}
+	}
+	tempfile hhserv
+	save `hhserv', replace
+		**
+	
+** ** household weights dataset
+	** use "`dat_folder_lsms'/`dat_folder_country'/za94cdta/STRATA2", clear
+	** tempfile hhweight
+	** save `hhweight', replace
+		** ** hhid
+		
+** ** psu, urban/rural dataset
+	** use "`dat_folder'/TZA_HBS_2000_2001_WGHTS_Y2010M10D06.DTA", clear
+	** tempfile hhpsu
+	** save `hhpsu', replace
+		** ** hhid
+	
+
+** ** merge
+** use `hhserv', clear
+** merge 1:1 dpto loc est mes sem viv using `hhserv2'
+** drop if _merge != 3
+** drop _merge
+
+
+** ** apply labels
+label variable disagu "water source"
+destring disagu, replace
+label define water 1 "piped water inside the house" 2 "piped water outside the house, but within the field" ///
+	3 "piped water in public key (or hydrant)" 4 "piped water to bring another home" 5 "water pipe" ///
+	6 "water from a well, river, lake, stream, or other" 9 "other"
+label values disagu water
+
+label variable drenaje "toilet type"
+destring drenaje, replace
+label define toilet 1 "public network" 2 "septic" 3 "pipeline that will give a gully or crack" 4 "pipe going to a river" ///
+	5 "has no drainage" 9 "not specified"
+label values drenaje toilet
+
+label variable factor "weight"
+label variable upm "psu"
+
+
+
+** save
+cd "`dat_folder_other_merged'"
+save "census_mexico_2010", replace
+
+
+capture log close

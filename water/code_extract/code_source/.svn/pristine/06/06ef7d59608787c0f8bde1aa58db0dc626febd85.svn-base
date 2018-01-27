@@ -1,0 +1,101 @@
+// File Name: extract_files_chns.do
+
+// File Purpose: Extract appropriate survey datasets from CHNS merged surveys
+// Author: Leslie Mallinger
+// Date: 5/21/10
+// Edited on: 
+
+// Additional Comments: 
+
+
+clear all
+// macro drop _all
+set mem 500m
+set more off
+capture log close
+
+
+** create locals for relevant files and folders
+local log_folder "${code_folder}"
+local dat_folder_new_chns "${data_folder}/CHNS"
+local dat_folder_chns_merged "${data_folder}/CHNS/Merged Original Files"
+local codes_folder "J:/Usable/Common Indicators/Country Codes"
+
+cap mkdir "`dat_folder_new_chns'"
+cap mkdir "`dat_folder_chns_merged'"
+
+
+** create local with household survey filenames in RHS data folder (must contain the letters "HH"), then make 
+** one observation per filename
+	// designate locals with filenames
+	local filenames: dir "`dat_folder_chns_merged'" files "china_*.dta", respectcase
+
+	// designate locals with the number of files
+	local numfiles: list sizeof filenames
+	
+	// put each filename into its own observation
+	local numobs = `numfiles'
+	set obs `numobs'
+	local obsnum = 1
+	gen filename = ""
+	
+	foreach file of local filenames {
+		replace filename = "`file'" if _n == `obsnum'
+		local obsnum = `obsnum' + 1
+	}
+	
+	
+** generate necessary file-associated variables
+	local fileregex "^([a-zA-Z]+)[_]+([0-9]+)"
+
+	// data type
+	gen dattype = "CRUDE"
+	
+	// survey type
+	gen svytype = "EXAM"
+	
+	// survey
+	gen svy = "CHNS"
+	
+	// iso code
+	gen iso3 = "CHN"
+	
+	// years
+	gen startyear = regexs(0) if regexm(filename, "([0-9]+)")
+	gen endyear = startyear
+	
+	// subnational
+	gen subnational = 1
+	
+	// filedir
+	gen filedir = "`dat_folder_chns_merged'"
+	
+	// filepath_full
+	gen filepath_full = filedir + "/" + filename
+	
+	
+** match ISO codes with country names, determine whether IHME country
+	// prepare countrycodes database
+	preserve
+	use "`codes_folder'/countrycodes_official.dta", clear
+	keep if countryname == countryname_ihme
+	drop if iso3 == ""
+	tempfile countrycodes
+	save `countrycodes', replace
+	restore
+
+	// merge together
+	merge m:1 iso3 using `countrycodes', keepusing(countryname ihme_country)
+	drop if _merge == 2
+	drop _merge
+	
+	
+** organize and save
+order countryname iso3 ihme_country startyear endyear, first
+sort countryname startyear
+
+cd "`dat_folder_new_chns'"
+save "datfiles_chns", replace
+
+
+capture log close

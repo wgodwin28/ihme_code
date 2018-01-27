@@ -1,0 +1,237 @@
+// File Name: lookfor_vars_other.do
+
+// File Purpose: Look for appropriate variables in "other" surveys
+// Author: Leslie Mallinger
+// Date: 6/21/10
+// Edited on: 
+
+// Additional Comments: 
+
+
+clear all
+set mem 500m
+** set maxvar 6000
+set more off
+capture log close
+
+
+** create locals for relevant files and folders
+local dat_folder_new_other "J:/Project/COMIND/Water and Sanitation/Data Audit/Data/Other"
+
+
+** open dataset and store data in a mata matrix
+use "`dat_folder_new_other'/datfiles_other", clear
+mata: files=st_sdata(.,("countryname", "filedir", "filename"))
+local maxobs = _N
+
+
+** create a vector for each of the variables of interest
+local vars psu weight urban w_srcedrnk t_type
+foreach var of local vars {
+	mata: `var' = J(`maxobs', 1, "")
+}
+
+
+** loop through survey files, looking for and saving relevant variables in each one
+forvalues filenum = 1(1)`maxobs' {
+	// save countryname and filename as locals, then print to keep track of position in the loop
+	mata: st_local("countryname", files[`filenum', 1])
+	mata: st_local("filedir", files[`filenum', 2])
+	mata: st_local("filename", files[`filenum', 3])
+	di _newline _newline "**********************************************************************************"
+	di "countryname: `countryname'" _newline "filename: `filename'"
+	di "**********************************************************************************"
+	
+	// open file (only first 50 observations for speed), then lookfor variables of interest and save in appropriate vector
+	use "`filedir'/`filename'" if _n < 50, clear
+	
+		// primary sampling unit
+		lookfor "psu" "cluster" "grappe" "conglomerado" "numero du site" "aglomerado" "segmento" "primary sampling unit"
+		mata: psu[`filenum', 1] = "`r(varlist)'"
+		if "`r(varlist)'" == "" {
+			lookfor "province" "upm" "ageb" "estrato"
+			mata: psu[`filenum', 1] = "`r(varlist)'"
+		}
+		
+		// sample weight
+		lookfor "sample weight"
+		mata: weight[`filenum', 1] = "`r(varlist)'"
+		if "`r(varlist)'" == "" {
+			lookfor "weight" "ponder" "factor"
+			mata: weight[`filenum', 1] = "`r(varlist)'"
+		}
+		
+		// urban/rural
+		lookfor "urban" "milieu" "area" "zona" "classification" "place of residence" /// 
+			"lugar de residencia" "urbain" "mileu" "residence"
+		mata: urban[`filenum', 1] = "`r(varlist)'"
+		if "`r(varlist)'" == "" {
+			lookfor "urb" "rur"
+			mata: urban[`filenum', 1] = "`r(varlist)'"
+		}
+		
+		// source of drinking water
+		lookfor "wsource"		
+		mata: w_srcedrnk[`filenum', 1] = "`r(varlist)'"
+		if "`r(varlist)'" == "" {
+			lookfor "source of drinking water" "source principale eau" "fonte de água" /// 
+				"source of water" "source d'eau" "fuente de agua" "abastecimento de água" /// 
+				"abastecimiento de agua" "principale source" "fuente principal de agua" ///
+				"water source" "disponibilidad de agua" "servicio de agua"
+			mata: w_srcedrnk[`filenum', 1] = "`r(varlist)'"
+		}
+		
+		// type of toilet facility
+		lookfor "type of toilet" "kind of toilet" "type de toilette" "tipo de toilet" "ttype" "toilet type" "toilet facility" "servicio sanitario"
+		mata: t_type[`filenum', 1] = "`r(varlist)'"
+		if "`r(varlist)'" == "" {
+			lookfor "toilet" "toilettes" "toillettes" "servicio de desague"
+			mata: t_type[`filenum', 1] = "`r(varlist)'"
+		}
+}
+
+
+** move variables from Mata into Stata datset	
+use "`dat_folder_new_other'/datfiles_other", clear
+getmata `vars'
+duplicates tag iso3 startyear, gen(tag)
+save "`dat_folder_new_other'/varlist_temp_other", replace
+	
+	
+** replace variables to mark surveys that are lacking both water and toilet information	
+use "`dat_folder_new_other'/varlist_temp_other", clear
+gen noinfo = 1 if iso3 == "MEX" & startyear == "1976" & svy == "WFS"
+foreach var of local vars {
+	replace `var' = "NOINFO" if noinfo == 1
+}
+
+
+** clean up entries with more than one variable listed
+	// psu
+	replace psu = "hid101" if svy == "PAPFAM"
+	replace psu = "V004" if svy == "WFS"
+	replace psu = "qhclust" if iso3 == "BGD" & startyear == "2001"
+	replace psu = "hciudad" if iso3 == "BOL" & startyear == "1990" & svy == "EIH"
+	replace psu = "upm" if iso3 == "DOM" & startyear == "2007"
+	replace psu = "eanumb" if iso3 == "GHA" & startyear == "2001"
+	replace psu = "seg_cen" if iso3 == "HND" & startyear == "2004"
+	replace psu = "b1r1" if (iso3 == "IDN" & startyear == "2008") | (iso3 == "IDN" & startyear == "2009") | ///
+		(iso3 == "IDN" & startyear == "2010")
+	replace psu = "PSUID" if iso3 == "IND" & startyear == "2004"
+	replace psu = "cid" if iso3 == "IRQ" & startyear == "2004"
+	replace psu = "qpsu" if iso3 == "KHM" & startyear == "2003"
+	replace psu = "ent" if iso3 == "MEX" & startyear == "2000" & svy == "ENSA"
+	replace psu = "" if iso3 == "MEX" & startyear == "2002" & svy == "MXFLS"
+	replace psu = "upm" if iso3 == "MEX" & startyear == "2003"
+	replace psu = "code_upm" if iso3 == "MEX" & startyear == "2005" & svy == "ENSANUT"
+	replace psu = "upm" if iso3 == "MEX" & startyear == "2006" & svy == "ENADID"
+	replace psu = "estrato" if iso3 == "MEX" & startyear == "2008" & svy == "ENIGH"
+	replace psu = "eacode" if iso3 == "NGA" & startyear == "2007"
+	replace psu = "EACode" if iso3 == "NGA" & startyear == "2008"
+	replace psu = "psuid" if iso3 == "TZA" & startyear == "2007"
+	replace psu = "tinh" if iso3 == "VNM" & startyear == "2004"
+	replace psu = "Stratum" if iso3 == "YEM" & startyear == "2005"
+	bro psu if regexm(psu, " ")
+		** missing entries for MEX 2002 MXFLS, THA 1984
+
+	// weight
+	replace weight = "hid109" if svy == "PAPFAM"
+	replace weight = "V006" if svy == "WFS"
+	replace weight = "qhweight" if iso3 == "BGD" & startyear == "2001"
+	replace weight = "hhweight" if iso3 == "DOM" & startyear == "2006"
+	replace weight = "pndviv4" if iso3 == "DOM" & startyear == "2007"
+	replace weight = "qhweight" if iso3 == "GHA" & startyear == "2007"
+	replace weight = "inf_rmt" if iso3 == "IDN" & startyear == "1985"
+	replace weight = "SWEIGHT" if iso3 == "IND" & startyear == "2004"
+	replace weight = "expweigh" if iso3 == "IRQ" & startyear == "2004"
+	replace weight = "weight" if iso3 == "KHM" & startyear == "1996"
+	replace weight = "WEI_H12" if iso3 == "KHM" & startyear == "2003"
+	replace weight = "p_hogar" if iso3 == "MEX" & startyear == "2003"
+	replace weight = "hweight" if iso3 == "NGA" & startyear == "2007"
+	replace weight = "hh_wt" if iso3 == "TZA" & startyear == "2000"
+	replace weight = "wt9" if iso3 == "VNM" & startyear == "2004"
+	replace weight = "Weight" if iso3 == "YEM" & startyear == "2005"
+	replace weight = "vhweight" if iso3 == "ZMB" & startyear == "2008"
+	bro weight if regexm(weight, " ")
+		** no missing entries
+	
+	// urban
+	replace urban = "hid105" if svy == "PAPFAM"
+	replace urban = "V702" if svy == "WFS"
+	replace urban = "qhtype2" if iso3 == "BGD" & startyear == "2001"
+	replace urban = "hzona" if regexm(urban, "hzona")
+	replace urban = "urbrur" if iso3 == "GHA" & startyear == "2001"
+	replace urban = "urbrur" if iso3 == "GHA" & startyear == "2003"
+	replace urban = "loc2" if iso3 == "GHA" & startyear == "2005"
+	replace urban = "qhurbrur" if iso3 == "GHA" & startyear == "2007"
+	replace urban = "urbrur" if iso3 == "IRQ" & startyear == "2004"
+	replace urban = "urban" if iso3 == "IRQ" & startyear == "2006"
+	replace urban = "qhtype" if iso3 == "MWI" & startyear == "1996"
+	replace urban = "" if iso3 == "NGA" & startyear == "2008"
+	replace urban = "tt_nt" if iso3 == "VNM" & startyear == "2004"
+	bro urban if regexm(urban, " ")
+		** missing entries for AFG 2006, MEX 2000 ENSA, MEX 2005 ENSANUT, MEX 2006 ENADID, 
+		** MEX ENIGH surveys, NGA GHS 2007 and 2008, THA 1984
+	
+	// w_srcedrnk
+	replace w_srcedrnk = "hh31" if svy == "PAPFAM"
+	replace w_srcedrnk = "g6" if iso3 == "BFA" & startyear == "2007"
+	replace w_srcedrnk = "q9da" if iso3 == "BTN" & startyear == "2005"
+	replace w_srcedrnk = "h2008" if iso3 == "DOM" & (startyear == "2005" | startyear == "2007")
+	replace w_srcedrnk = "p3012" if iso3 == "DOM" & startyear == "2006"
+	replace w_srcedrnk = "s7dq1a" if iso3 == "GHA" & startyear == "2005"
+	replace w_srcedrnk = "s1p27" if iso3 == "HND" & startyear == "2004"
+	replace w_srcedrnk = "b4q11" if iso3 == "IDN" & startyear == "1980" & svy == "CENSUS"
+	replace w_srcedrnk = "b4p11" if iso3 == "IDN" & startyear == "1990" & svy == "CENSUS"
+	replace w_srcedrnk = "WA1" if iso3 == "IND" & startyear == "2004"
+	replace w_srcedrnk = "ha29" if iso3 == "IRQ" & startyear == "2004"
+	replace w_srcedrnk = "Q03_13" if iso3 == "KHM" & startyear == "2003"
+	replace w_srcedrnk = "HC16" if iso3 == "LKA" & startyear == "1975"
+	replace w_srcedrnk = "S048" if iso3 == "MEX" & startyear == "1976"
+	replace w_srcedrnk = "agua" if iso3 == "MEX" & (startyear == "1992" | startyear == "1994") & svy == "ENIGH"
+	replace w_srcedrnk = "h406" if iso3 == "MEX" & startyear == "2000" & svy == "ENSA"
+	replace w_srcedrnk = "cv08_1" if iso3 == "MEX" & startyear == "2002" & svy == "MXFLS"
+	replace w_srcedrnk = "agua15" if iso3 == "MEX" & ///
+		(startyear == "2004" | startyear == "2005" | startyear == "2006") & svy == "ENIGH"
+	replace w_srcedrnk = "agua13" if iso3 == "MEX" & startyear == "2008" & svy == "ENIGH"
+	replace w_srcedrnk = "p1_7" if iso3 == "MEX" & startyear == "2009" & svy == "ENADID"
+	replace w_srcedrnk = "swater" if iso3 == "NGA" & startyear == "2007" & svy == "GHS"
+	replace w_srcedrnk = "Water_Sos" if iso3 == "NGA" & startyear == "2008" & svy == "GHS"
+	replace w_srcedrnk = "S5Q05" if iso3 == "PAK" & startyear == "1998"
+	replace w_srcedrnk = "s5q05" if iso3 == "PAK" & (startyear == "2005" | startyear == "2007")
+	replace w_srcedrnk = "HC27" if iso3 == "PHL" & startyear == "1978"
+	replace w_srcedrnk = "wsource" if iso3 == "THA" & startyear == "1984"
+	replace w_srcedrnk = "HC121" if iso3 == "TTO" & startyear == "1977"
+	replace w_srcedrnk = "s32q01" if iso3 == "TZA" & (startyear == "1991" | startyear == "2000")
+	replace w_srcedrnk = "g7" if iso3 == "TZA" & startyear == "2005"
+	replace w_srcedrnk = "g6" if iso3 == "TZA" & startyear == "2006"
+	replace w_srcedrnk = "S32Q01_WATER" if iso3 == "TZA" & startyear == "2007"
+	replace w_srcedrnk = "T4AQ10" if iso3 == "TZA" & startyear == "2009"
+	replace w_srcedrnk = "C007A" if iso3 == "ZMB" & startyear == "2004"
+	replace w_srcedrnk = "ZM_QH21" if iso3 == "ZMB" & startyear == "2008"
+	bro w_srcedrnk if regexm(w_srcedrnk, " ")
+		** missing entry for BGD 2001
+	
+	// t_type
+	replace t_type = "hh51" if svy == "PAPFAM"
+	replace t_type = "qh16" if iso3 == "BGD" & startyear == "2001"
+	replace t_type = "H147" if iso3 == "BOL" & startyear == "1990" & svy == "EIH"
+	replace t_type = "PF1B10" if iso3 == "BOL" & startyear == "1990" & svy == "EPF"
+	replace t_type = "H140" if iso3 == "BOL" & startyear == "1992" & svy == "EIH"
+	replace t_type = "ttype" if regexm(t_type, "ttype")
+	replace t_type = "s7dq16" if iso3 == "GHA" & startyear == "2005"
+	replace t_type = "s1p31" if iso3 == "HND" & startyear == "2004"
+	replace t_type = "SA4" if iso3 == "IND" & startyear == "2004"
+	replace t_type = "HC17" if iso3 == "LKA" & startyear == "1975"
+	replace t_type = "S049" if iso3 == "MEX" & startyear == "1976"
+	replace t_type = "toilet" if iso3 == "MEX" & startyear == "2002" & svy == "MXFLS"
+	replace t_type = "q4045" if iso3 == "MEX" & startyear == "2003"
+	replace t_type = "" if iso3 == "MEX" & startyear == "2005" & svy == "ENSANUT"
+	replace t_type = "tfclties" if iso3 == "NGA" & startyear == "2007"
+	replace t_type = "HC29" if iso3 == "PHL" & startyear == "1978"
+	bro t_type if regexm(t_type, " ")
+		** missing entries for IDN 2005, MEX 2000 ENSA
+		
+** save 
+compress
+save "`dat_folder_new_other'/varlist_other", replace

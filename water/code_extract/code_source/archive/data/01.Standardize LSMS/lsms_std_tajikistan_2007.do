@@ -1,0 +1,68 @@
+// File Name: lsms_std_tajikistan_2007.do
+
+// File Purpose: Create standardized dataset with desired variables from LSMS Tajikistan 2007 survey
+// Author: Leslie Mallinger
+// Date: 7/1/2010
+// Edited on: 
+
+// Additional Comments: 
+
+
+clear all
+// macro drop _all
+set mem 500m
+set more off
+if "`c(os)'" == "Windows" {
+	global j "J:"
+}
+else {
+	global j "/home/j"
+	set odbcmgr unixodbc
+}
+
+
+** create locals for relevant files and folders
+local dat_folder_lsms "${j}/DATA/WB_LSMS"
+local dat_folder_lsms_merged "${data_folder}/LSMS/Merged Original Files"
+local codes_folder "${j}/Usable/Common Indicators/Country Codes"
+local dat_folder_country "TJK/2007"
+
+
+
+** water, sanitation dataset
+	use "`dat_folder_lsms'/`dat_folder_country'/TJK_LSMS_2007_R1M7C_Y2009M09D22", clear
+	tempfile hhserv
+	save `hhserv', replace
+		** hhid
+	
+** household weights dataset
+	use "`dat_folder_lsms'/`dat_folder_country'/TJK_LSMS_2007_WEIGHTS_Y2009M09D22", clear
+	tempfile hhweight
+	save `hhweight', replace
+		** hhid
+		
+** psu, urban/rural dataset
+	use "`dat_folder_lsms'/`dat_folder_country'/TJK_LSMS_2007_R1M0_Y2009M09D22.dta", clear
+	tempfile hhpsu
+	save `hhpsu', replace
+		** hhid
+	
+
+** merge
+use `hhweight', clear
+merge 1:m hhid using `hhserv'
+keep if _merge == 3
+drop _merge
+merge 1:1 hhid using `hhpsu'
+keep if _merge == 3
+drop _merge
+
+
+** apply labels
+
+
+
+** save
+cd "`dat_folder_lsms_merged'"
+save "tajikistan_2007", replace
+

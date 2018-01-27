@@ -1,0 +1,240 @@
+// File Name: lookfor_vars_lsms.do
+
+// File Purpose: Look for appropriate variables in LSMS surveys
+// Author: Leslie Mallinger
+// Date: 5/27/10 (modified from "J:\Project\COMIND\Water and Sanitation\Data Audit\Code\lookfor_vars_lsms.do")
+// Edited on:
+
+// Additional Comments: 
+
+
+clear all
+set mem 500m
+** set maxvar 6000
+set more off
+capture log close
+
+
+** create locals for relevant files and folders
+local dat_folder_new_lsms "J:/Project/COMIND/Water and Sanitation/Data Audit/Data/LSMS"
+
+
+** open dataset and store data in a mata matrix
+use "`dat_folder_new_lsms'/datfiles_lsms", clear
+mata: files=st_sdata(.,("countryname", "filedir", "filename"))
+local maxobs = _N
+
+
+** create a vector for each of the variables of interest
+local vars psu weight urban w_srcedrnk t_type
+foreach var of local vars {
+	mata: `var' = J(`maxobs', 1, "")
+}
+
+
+** loop through survey files, looking for and saving relevant variables in each one
+forvalues filenum = 1(1)`maxobs' {
+	// save countryname and filename as locals, then print to keep track of position in the loop
+	mata: st_local("countryname", files[`filenum', 1])
+	mata: st_local("filedir", files[`filenum', 2])
+	mata: st_local("filename", files[`filenum', 3])
+	di _newline _newline "**********************************************************************************"
+	di "countryname: `countryname'" _newline "filename: `filename'"
+	di "**********************************************************************************"
+	
+	// open file (only first 50 observations for speed)
+	use "`filedir'/`filename'" if _n < 50, clear
+	
+	** look for variables of interest and save in appropriate vector	
+		// primary sampling unit
+		lookfor "primary sampling unit" "psu" "grappe" "eanum" "oblast" "suco"
+		mata: psu[`filenum', 1] = "`r(varlist)'"
+		if "`r(varlist)'" == "" {
+			lookfor "cluster number" "upm" "primaria" "segment" "gnd" "enumeration area"
+			mata: psu[`filenum', 1] = "`r(varlist)'"
+			if "`r(varlist)'" == "" {
+				lookfor "clust" "region"
+				mata: psu[`filenum', 1] = "`r(varlist)'"
+			}
+		}
+		
+		// sample weight
+		lookfor "sample weight" "pesomef" "poids" "household weight"
+		mata: weight[`filenum', 1] = "`r(varlist)'"
+		if "`r(varlist)'" == "" {
+			lookfor "weight" "ponder" "peso" "wait" "factor"
+			mata: weight[`filenum', 1] = "`r(varlist)'"
+		}
+		
+		// urban/rural
+		lookfor "type of place of residence" "urban" "area" 
+		mata: urban[`filenum', 1] = "`r(varlist)'"
+		if "`r(varlist)'" == "" {
+			lookfor "milieu" "urbrur" "strata" "residenc"
+			mata: urban[`filenum', 1] = "`r(varlist)'"
+		}
+		if "`filename'" == "serbia_2007.dta" mata: urban[`filenum', 1] = "urban"
+		
+		// source of drinking water
+		lookfor "drinking water" "fuente principal" "donde obtienen agua"
+		mata: w_srcedrnk[`filenum', 1] = "`r(varlist)'"
+		if "`r(varlist)'" == "" {
+			lookfor "potable" "abastecimiento" "agua para beber" "agua beber" "servicio de agua" /// 
+				"obtiene el agua" "tipo de agua" "wsource"
+			mata: w_srcedrnk[`filenum', 1] = "`r(varlist)'"
+			if "`r(varlist)'" == "" {
+				lookfor "water" "agua" "eau"
+				mata: w_srcedrnk[`filenum', 1] = "`r(varlist)'"
+			}
+		}
+		
+		// type of toilet facility
+		lookfor "type of toilet" "sanitario" "servicio higienico" "cuarto de" "fezes"
+		mata: t_type[`filenum', 1] = "`r(varlist)'"
+		if "`r(varlist)'" == "" {
+			lookfor "toilet" "toilettes" "higiénico" "desague de aguas servidas"
+			mata: t_type[`filenum', 1] = "`r(varlist)'"
+		}
+}
+
+
+** move variables from Mata into Stata datset
+use "`dat_folder_new_lsms'/datfiles_lsms", clear		
+capture getmata `vars'
+if _rc != 0 {
+	di in red "mata vector(s) too long"
+	pause
+}
+
+	** // add temporary variable indicating whether I've already dealt with it or not
+	** gen ok = .
+	** replace ok = 1 if iso3 == "ALB" | iso3 == "AZE" | iso3 == "BIH" | iso3 == "CIV" | ///
+		** iso3 == "ECU" | iso3 == "GHA" | iso3 == "GTM" | iso3 == "GUY" | iso3 == "IND" | ///
+		** iso3 == "JAM" | iso3 == "KAZ" | iso3 == "KGZ" | iso3 == "MAR" | iso3 == "NIC" | ///
+		** iso3 == "PAK" | iso3 == "PAN" | iso3 == "PNG" | iso3 == "PER" | iso3 == "SRB" | ///
+		** iso3 == "TJK" | iso3 == "TLS" | iso3 == "ZAF"
+
+save "`dat_folder_new_lsms'/varlist_temp_lsms", replace	
+
+
+** replace variables to mark surveys that are lacking both water and toilet information	
+use "`dat_folder_new_lsms'/varlist_temp_lsms", clear
+** gen noinfo = 0
+** foreach var of local vars {
+	** replace `var' = "NOINFO" if noinfo == 1
+** }
+	
+	
+** clean up entries with more than one variable listed
+	// psu
+	replace psu = "B0_Q03" if iso3 == "ALB" & startyear == "2003"
+	replace psu = "psu" if iso3 == "ALB" & startyear == "2005"
+	replace psu = "ppid" if iso3 == "AZE" & startyear == "1995"
+	replace psu = "dominio" if iso3 == "ECU" & startyear == "1998"
+	replace psu = "ed" if iso3 == "GUY" & startyear == "1993"
+	replace psu = "district" if iso3 == "IND" & startyear == "1997"
+	replace psu = "oblast" if iso3 == "KAZ" & startyear == "1996"
+	replace psu = "i03" if iso3 == "NIC" & (startyear == "2001" | startyear == "2005")
+	replace psu = "clust" if iso3 == "PAK" & startyear == "1991"
+	replace psu = "popkrug" if iso3 == "SRB" & startyear == "2007"
+	replace psu = "tlss_psu" if iso3 == "TJK" & startyear == "2003"
+	replace psu = "psuid" if iso3 == "TJK" & (startyear == "2007" | startyear == "2009")
+	bro psu if regexm(psu, " ")
+		** missing BIH 2003
+	
+	// weight
+	replace weight = "wt_w3_cr" if iso3 == "ALB" & startyear == "2004"
+	replace weight = "final_weights" if iso3 == "ALB" & startyear == "2005"
+	replace weight = "w" if iso3 == "AZE" & startyear == "1995"
+	replace weight = "whhd" if iso3 == "BIH" & startyear == "2001"
+	replace weight = "weight" if iso3 == "BIH" & startyear == "2002"
+	replace weight = "w3final" if iso3 == "BIH" & startyear == "2003"
+	replace weight = "whh" if iso3 == "ECU" & startyear == "1995"
+	replace weight = "fexp" if iso3 == "ECU" & startyear == "1998"
+	replace weight = "factor2" if iso3 == "GTM" & startyear == "2000"
+	replace weight = "weight" if iso3 == "KGZ" & (startyear == "1997" | startyear == "1998")
+	replace weight = "coefmen" if iso3 == "MAR" & startyear == "1991"
+	replace weight = "peso2" if iso3 == "NIC" & startyear == "2001"
+	replace weight = "Peso2" if iso3 == "NIC" & startyear == "2005"	
+	replace weight = "factor" if iso3 == "PAN" & startyear == "2003"
+	replace weight = "factor" if iso3 == "PAN" & startyear == "2008"
+	replace weight = "rsweight" if iso3 == "ZAF" & startyear == "1993"
+	bro weight if regexm(weight, " ")
+		** missing value for KGZ 1996; others are self-weighted surveys
+	
+	// urban
+	replace urban = "ur" if iso3 == "ALB" & startyear == "2002"
+	replace urban = "" if iso3 == "ALB" & startyear == "2003"
+	replace urban = "" if iso3 == "ALB" & startyear == "2004"
+	replace urban = "m0_ur" if iso3 == "ALB" & startyear == "2005"
+	replace urban = "zone" if iso3 == "AZE" & startyear == "1995"
+	replace urban = "mun_type" if iso3 == "BIH" & startyear == "2001"
+	replace urban = "" if iso3 == "BIH" & startyear == "2004"
+	replace urban = "urban" if iso3 == "ECU" & startyear == "1994"
+	replace urban = "urban" if iso3 == "ECU" & startyear == "1995"
+	replace urban = "" if iso3 == "ECU" & startyear == "1998"
+	replace urban = "" if iso3 == "GHA" & startyear == "1998"
+	replace urban = "urban" if iso3 == "GUY" & startyear == "1993"
+	replace urban = "area1" if iso3 == "PAN" & startyear == "2003"
+	replace urban = "" if iso3 == "PAN" & startyear == "2008"
+	replace urban = "" if iso3 == "PNG" & startyear == "1996"
+	replace urban = "type_reg" if iso3 == "TJK" & startyear == "2003"
+	replace urban = "location" if iso3 == "TJK" & startyear == "2007"
+	replace urban = "location" if iso3 == "TJK" & startyear == "2009"
+	replace urban = "urbrural" if iso3 == "TLS" & startyear == "2001"
+		** lots missing
+
+	// w_srcedrnk
+	replace w_srcedrnk = "wsource" if iso3 == "ALB" & startyear == "2002"
+	replace w_srcedrnk = "water" if iso3 == "AZE" & startyear == "1995"
+	replace w_srcedrnk = "water_source" if iso3 == "BGR" & startyear == "1995"	
+	replace w_srcedrnk = "dwater" if iso3 == "CIV"
+	replace w_srcedrnk = "watersource" if iso3 == "ECU" & (startyear == "1994" | startyear == "1995")
+	replace w_srcedrnk = "vi18" if iso3 == "ECU" & startyear == "1998"
+	replace w_srcedrnk = "p01a12" if iso3 == "GTM" & startyear == "2000"
+	replace w_srcedrnk = "hous6" if iso3 == "GUY" & startyear == "1993"
+	replace w_srcedrnk = "s2bq23" if iso3 == "KGZ" & startyear == "1996"
+	replace w_srcedrnk = "v02a07" if iso3 == "KGZ" & startyear == "1997"
+	replace w_srcedrnk = "a0207" if iso3 == "KGZ" & startyear == "1998"
+	replace w_srcedrnk = "s02q40" if iso3 == "MAR" & startyear == "1991"
+	replace w_srcedrnk = "s1p20" if iso3 == "NIC" & startyear == "2001"
+	replace w_srcedrnk = "s1p20b" if iso3 == "NIC" & startyear == "2005"
+	replace w_srcedrnk = "v19" if iso3 == "PAN" & startyear == "2003"
+	replace w_srcedrnk = "h26" if iso3 == "PNG" & startyear == "1996"
+	replace w_srcedrnk = "s02b_12" if iso3 == "PER" & startyear == "1985"
+	replace w_srcedrnk = "bo2_1" if iso3 == "SRB" & startyear == "2007"
+	replace w_srcedrnk = "wsource_" if iso3 == "ZAF" & startyear == "1993"
+	replace w_srcedrnk = "m7cq1" if iso3 == "TJK" & startyear == "2007"	
+	replace w_srcedrnk = "s02c01" if iso3 == "TLS" & startyear == "2001"
+	bro w_srcedrnk if regexm(w_srcedrnk, " ")
+		** no missing entries
+	
+	// t_type
+	replace t_type = "m13a_q10" if iso3 == "ALB" & startyear == "2005"
+	replace t_type = "m2_q19" if iso3 == "BIH" & startyear == "2001"
+	replace t_type = "b2_12" if iso3 == "BIH" & startyear == "2002"
+	replace t_type = "c2_q12" if iso3 == "BIH" & startyear == "2003"
+	replace t_type = "d2_q12b" if iso3 == "BIH" & startyear == "2004"
+	replace t_type = "sewage" if iso3 == "ECU" & startyear == "1994"
+	replace t_type = "sewageorig" if iso3 == "ECU" & startyear == "1995"
+	replace t_type = "vi13" if iso3 == "ECU" & startyear == "1998"
+	replace t_type = "p01a26" if iso3 == "GTM" & startyear == "2000"
+	replace t_type = "v03b09" if iso3 == "IND" & startyear == "1997"
+	replace t_type = "s2bq30" if iso3 == "KGZ" & startyear == "1996"
+	replace t_type = "a0214" if iso3 == "KGZ" & startyear == "1998"
+	replace t_type = "s02q33" if iso3 == "MAR" & startyear == "1991"
+	replace t_type = "s1p29" if iso3 == "NIC" & startyear == "2001"
+	replace t_type = "s1p32" if iso3 == "NIC" & startyear == "2005"
+	replace t_type = "v29" if iso3 == "PAN" & startyear == "2003"
+	replace t_type = "s1b29" if iso3 == "PAN" & startyear == "2008"
+	replace t_type = "s02b_18" if iso3 == "PER" & startyear == "1985"
+	replace t_type = "h34" if iso3 == "PNG" & startyear == "1996"
+	replace t_type = "bo28" if iso3 == "SRB" & startyear == "2007"
+	replace t_type = "toilet_c" if iso3 == "ZAF" & startyear == "1993"
+	bro t_type if regexm(t_type, " ")
+		** FIXME
+	
+** save 
+compress
+save "`dat_folder_new_lsms'/varlist_lsms", replace
+

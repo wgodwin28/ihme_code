@@ -1,0 +1,107 @@
+// File Name: plot_prop_uncertain.do
+
+// File Purpose: Plot the proportion of households with facilities that are of uncertain improvement status
+// Author: Leslie Mallinger
+// Date: 7/13/2011
+// Edited on: 
+
+// Additional Comments: 
+
+
+clear all
+// macro drop _all
+set mem 500m
+set more off
+capture log close
+capture restore, not
+
+
+** create locals for relevant files and folders
+local survey_list "${data_folder}/surveys_to_analyze.csv"
+local graph_folder "C:/Users/tomflem/Documents/Covariates/Updates/water_sanitation/model/graphs/prevalence"
+local codes_folder "J:/Usable/Common Indicators/Country Codes"
+
+
+** initialize pdfmaker
+	set scheme s1color
+	capture confirm file "C:/Program Files (x86)/Adobe/Acrobat 9.0/Acrobat/acrodist.exe"
+	if _rc == 0 {
+		do "J:/Usable/Tools/ADO/pdfmaker.do"
+	}
+	else {
+		do "J:/Usable/Tools/ADO/pdfmaker_Acrobat10.do"
+	}
+	pdfstart using "`graph_folder'/prop_uncertain.pdf"
+
+
+** extract list of surveys to analyze
+insheet using "`survey_list'", comma clear names
+local num_obs = _N
+tempfile surveys
+save `surveys', replace
+
+
+** loop through surveys and plot
+forvalues i = 1/`num_obs' {
+	use `surveys', clear
+		** open survey prevalence file
+		local svy = survey in `i'
+		local data_folder = dataloc in `i'
+		di in red "`svy'"
+		
+		use "`data_folder'/prev_`svy'_rough.dta", clear
+		
+		** obtain region designations
+		merge m:1 countryname using "`codes_folder'/countrycodes_official.dta", /// 
+			keepusing(gbd_region gbd_super_region) keep(3) nogen
+
+		** create necessary values for plotting
+		egen cy = concat(iso3 startyear), punct(" ")
+		encode cy, generate(cy_num)
+		summ cy_num, meanonly
+		local max = r(max)
+		local survey_caps = upper("`svy'")
+		
+		** plot for water
+		preserve
+			drop if iwater_uncertain == .
+			twoway bar iwater_uncertain cy_num if gbd_super_region == 1, horizontal color("166 206 227") || ///
+				bar iwater_uncertain cy_num if gbd_super_region == 2, horizontal color("31 120 180") || ///
+				bar iwater_uncertain cy_num if gbd_super_region == 3, horizontal color("178 223 138") || ///
+				bar iwater_uncertain cy_num if gbd_super_region == 4, horizontal color("51 160 44") || ///
+				bar iwater_uncertain cy_num if gbd_super_region == 5, horizontal color("251 154 153") || ///
+				bar iwater_uncertain cy_num if gbd_super_region == 6, horizontal color("227 26 28") || /// 
+				bar iwater_uncertain cy_num if gbd_super_region == 7, horizontal color("253 191 111") ///
+				title("`survey_caps'", size(small)) ///
+				subtitle("Proportion of Water Sources with Uncertain Improvement Status", size(vsmall)) /// 
+				xtitle("Proportion Uncertain", size(vsmall)) ///
+				ytitle("Country-Year", size(vsmall)) ///
+				xlabel(0(0.2)1, labsize(tiny)) /// 
+				ylabel(1(1)`max', valuelabel angle(horizontal) labsize(tiny)) ///
+				legend(label(1 "SR 1") label(2 "SR 2") label(3 "SR 3") label(4 "SR 4") label(5 "SR 5") ///
+					label(6 "SR 6") label(7 "SR 7") symysize(1) symxsize(1) size(vsmall) cols(7))
+			pdfappend
+		restore
+		
+		preserve
+			drop if isanitation_uncertain == .
+			twoway bar isanitation_uncertain cy_num if gbd_super_region == 1, horizontal color("166 206 227") || ///
+				bar isanitation_uncertain cy_num if gbd_super_region == 2, horizontal color("31 120 180") || ///
+				bar isanitation_uncertain cy_num if gbd_super_region == 3, horizontal color("178 223 138") || ///
+				bar isanitation_uncertain cy_num if gbd_super_region == 4, horizontal color("51 160 44") || ///
+				bar isanitation_uncertain cy_num if gbd_super_region == 5, horizontal color("251 154 153") || ///
+				bar isanitation_uncertain cy_num if gbd_super_region == 6, horizontal color("227 26 28") || /// 
+				bar isanitation_uncertain cy_num if gbd_super_region == 7, horizontal color("253 191 111") ///
+				title("`survey_caps'", size(small)) ///
+				subtitle("Proportion of Sanitation Sources with Uncertain Improvement Status", size(vsmall)) /// 
+				xtitle("Proportion Uncertain", size(vsmall)) ///
+				ytitle("Country-Year", size(vsmall)) ///
+				xlabel(0(0.2)1, labsize(tiny)) ///
+				ylabel(1(1)`max', valuelabel angle(horizontal) labsize(tiny)) ///
+				legend(label(1 "SR 1") label(2 "SR 2") label(3 "SR 3") label(4 "SR 4") label(5 "SR 5") ///
+					label(6 "SR 6") label(7 "SR 7") symysize(1) symxsize(1) size(vsmall) cols(7))
+			pdfappend
+		restore
+}
+pdffinish
+capture erase "`graph_folder'/prop_uncertain.log"

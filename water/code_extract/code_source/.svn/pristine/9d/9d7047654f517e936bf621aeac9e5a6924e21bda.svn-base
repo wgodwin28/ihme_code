@@ -1,0 +1,80 @@
+// File Name: lsms_std_papua new guinea_1996.do
+
+// File Purpose: Create standardized dataset with desired variables from LSMS Papua New Guinea 1996 survey
+// Author: Leslie Mallinger
+// Date: 6/9/2010
+// Edited on: 
+
+// Additional Comments: 
+
+
+clear all
+macro drop _all
+set mem 500m
+set more off
+if "`c(os)'" == "Windows" {
+	global j "J:"
+}
+else {
+	global j "/home/j"
+	set odbcmgr unixodbc
+}
+
+
+** create locals for relevant files and folders
+local dat_folder_lsms "${j}/DATA/WB_LSMS"
+local dat_folder_lsms_merged "${j}/Project/COMIND/Water and Sanitation/Data Audit/Data/LSMS/Merged Original Files"
+local codes_folder "${j}/Usable/Common Indicators/Country Codes"
+local dat_folder_country "PNG/1996"
+
+
+
+** water, sanitation dataset
+	use "`dat_folder_lsms'/`dat_folder_country'/PNG_LSMS_1996_HH_FOOD_HOUSING_CONDITIONS.DTA", clear
+	tempfile hhserv
+	save `hhserv', replace
+		** province c census dwelling month
+	
+** household weights dataset
+	use "`dat_folder_lsms'/`dat_folder_country'/PNG_LSMS_1996_HH_WEIGHTS.DTA", clear
+	rename prov province
+	rename cd c
+	rename cu census
+	rename dwg dwelling
+	tempfile hhweight
+	save `hhweight', replace
+		** province c census dwelling month
+		
+** ** psu, urban/rural dataset
+	** use "`dat_folder_lsms'/`dat_folder_country'/SEC0A.DTA", clear
+	** tempfile hhpsu
+	** save `hhpsu', replace
+		** ** nh and clust
+	
+
+** merge
+use `hhweight', clear
+merge 1:1 province c census dwelling month using `hhserv'
+drop if _merge != 3
+drop _merge
+** merge 1:1 nh clust using `hhpsu'
+** drop _merge
+
+
+** apply labels
+label define wsource 1 "piped into household/yard" 2 "piped into neighbourhood" 3 "piped supply outside neighbourhood" ///
+	4 "well in yard" 5 "public well" 6 "rain water tank" 7 "river, lake, creek, spring" 8 "tanker truck" ///
+	9 "other (specify)"
+label values h26 wsource
+
+label define ttype 1 "own flush toilet" 2 "shared flush toilet" 3 "household pit" 4 "household bucket" ///
+	5 "communal pit toilet" 6 "closet over sea or water" 7 "other (specify)" 8 "no toilet"
+label values h34 ttype
+
+replace h34 = 8 if h33 == 2 & h34 == .
+
+
+** save
+cd "`dat_folder_lsms_merged'"
+save "papua new guinea_1996", replace
+

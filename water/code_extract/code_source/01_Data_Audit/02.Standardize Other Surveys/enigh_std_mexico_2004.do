@@ -1,0 +1,74 @@
+// File Name: enigh_std_mexico_2004.do
+
+// File Purpose: Create standardized dataset with desired variables from ENIGH Mexico 2004 Survey
+// Author: Leslie Mallinger
+// Date: 8/3/2010
+// Edited on: 
+
+// Additional Comments: 
+
+
+clear all
+// macro drop _all
+set mem 500m
+set more off
+capture log close
+
+
+** create locals for relevant files and folders
+local log_folder "${code_folder}/02.Standardize Other Surveys"
+local dat_folder "J:\DATA\MEX\SURVEY_INCOME_AND_HOUSEHOLD_EXPENDITURE_ENIGH\2004"
+local dat_folder_other_merged "${data_folder}/Other/Merged Original Files"
+local codes_folder "J:/Usable/Common Indicators/Country Codes"
+
+
+
+** water, sanitation dataset
+	use "`dat_folder'/MEX_ENIGH_2004_HOUSEHOLD.DTA", clear
+	tempfile hhserv
+	save `hhserv', replace
+		** hhid
+	
+** ** household weights dataset
+	** use "`dat_folder_lsms'/`dat_folder_country'/za94cdta/STRATA2", clear
+	** tempfile hhweight
+	** save `hhweight', replace
+		** ** hhid
+		
+** ** psu, urban/rural dataset
+	** use "`dat_folder_lsms'/`dat_folder_country'/za94cdta/STRATA2", clear
+	** tempfile hhpsu
+	** save `hhpsu', replace
+		** ** nh and clust
+	
+
+** merge
+** use `hhweight', clear
+** merge 1:m hhid using `hhserv'
+** drop if _merge != 3
+** drop _merge
+** merge 1:1 nh clust using `hhpsu'
+** drop _merge
+
+
+** apply labels
+destring agua15, replace
+label variable agua15 "en esta vivienda tienen agua de..."
+label define wsource 1 "la red publica, dentro de la vivienda" ///
+	2 "la red publica, fuera de la vivienda pero dentro del terreno" 3 "un llave publica o hidrante" ///
+	4 "otra vivienda" 5 "una pipa" 6 "un pozo" 7 "un rio, arroyo, o lago"
+label values agua15 wsource
+
+destring bano17, replace
+label variable bano17 "esta vivienda tiene ... tipo servicio sanitario"
+label define ttype 1 "hoyo negro o pozo ciego" 2 "letrina" 3 "excusado o sanitario sin conexion de agua" ///
+	4 "excusado o sanitario con conexion de agua" 5 "no tiene servicio sanitario"
+label values bano17 ttype
+
+
+** save
+cd "`dat_folder_other_merged'"
+save "enigh_mexico_2004", replace
+
+
+capture log close

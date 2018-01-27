@@ -1,0 +1,280 @@
+// File Name: import_est_jmp.do
+
+// File Purpose: Import coverage estimates from JMP database
+// Author: Leslie Mallinger
+// Date: 5/24/10-5/27/10
+// Edited on: 7/30/10 (took out the restriction that removed data from reviews)
+
+// Additional Comments: 
+
+
+clear all
+macro drop _all
+set mem 500m
+set more off
+capture log close
+capture restore, not
+pause on
+
+
+** create locals for relevant files and folders
+local log_folder "J:/Project/COMIND/Water and Sanitation/Data Audit/Code"
+local dat_folder_jmp "J:/Project/COMIND/Water and Sanitation/Data Audit/Data/JMP"
+local urbrur_folder "J:/DATA/UN_WORLD_POPULATION_PROSPECTS/2008"
+local codes_folder "J:/Usable/Common Indicators/Country Codes"
+
+
+** WATER
+	// loop through JMP water extracts to combine them
+	local filenames: dir "`dat_folder_jmp'/Water (2012 Reports)/extracts" files "*.csv", respectcase
+	clear
+	gen v1 = ""
+	foreach f of local filenames {
+		if "`f'" != "~.csv" {
+			di "appending `f'"
+			preserve
+				insheet using "`dat_folder_jmp'/Water (2012 Reports)/extracts/`f'", comma clear nonames
+				local iso3 = substr("`f'", 1, 3)
+				gen iso3 = "`iso3'"
+				replace iso3 = strupper(iso3)
+				tempfile `iso3'
+				save ``iso3'', replace
+			restore
+			append using "``iso3''"
+		}
+	}
+	
+	// rename variables
+	compress
+	drop v22-v133
+	rename v1 source
+	rename v2 code
+	rename v3 startyear
+	rename v4 urban_piped
+	rename v5 urban_piped_notused
+	rename v6 urban_improved
+	rename v7 urban_improved_notused
+	rename v8 urban_surface
+	rename v9 urban_surface_notused
+	rename v10 rural_piped
+	rename v11 rural_piped_notused
+	rename v12 rural_improved
+	rename v13 rural_improved_notused
+	rename v14 rural_surface
+	rename v15 rural_surface_notused
+	rename v16 total_piped
+	rename v17 total_piped_notused
+	rename v18 total_improved
+	rename v19 total_improved_notused
+	rename v20 total_surface
+	rename v21 total_surface_notused
+	drop *piped* *surface*
+	gen urban_notused = 1 if urban_improved == . & urban_improved_notused != .
+	gen rural_notused = 1 if rural_improved == . & rural_improved_notused != .
+	replace urban_improved = urban_improved_notused if urban_improved == .
+	replace rural_improved = rural_improved_notused if rural_improved == .
+	drop *improved_notused
+	drop if (urban_improved == . | rural_improved == .) & total_improved == .
+	sort iso3 startyear code
+	rename urban_improved iwater_urban
+	rename rural_improved iwater_rural
+	rename total_improved iwater_total_JMP
+	order iso3 startyear code iwater*, first
+	
+	// remove duplicates
+	duplicates tag iso3 startyear source, gen(tag)
+	bysort iso3 startyear source (rural_notused): egen num = seq()
+	drop if tag == 1 & num == 1
+	drop tag num
+	duplicates tag iso3 startyear code, gen(tag)
+	bysort iso3 startyear code (source): egen num = seq()
+	drop if tag == 1 & num == 1
+	drop tag num *notused
+
+	// save
+	compress
+	tempfile jmp_water
+	save `jmp_water', replace
+	
+	
+** SANITATION
+	// loop through JMP sanitation extracts to combine them
+	local filenames: dir "`dat_folder_jmp'/Sanitation (2012 Reports)/extracts" files "*.csv", respectcase
+	clear
+	gen v1 = ""
+	foreach f of local filenames {
+		if "`f'" != "~.csv" {
+			di "appending `f'"
+			preserve
+				insheet using "`dat_folder_jmp'/Sanitation (2012 Reports)/extracts/`f'", comma clear nonames
+				local iso3 = substr("`f'", 1, 3)
+				gen iso3 = "`iso3'"
+				replace iso3 = strupper(iso3)
+				tempfile `iso3'
+				save ``iso3'', replace
+			restore
+			append using "``iso3''"
+		}
+	}
+	
+	// rename variables
+	compress
+	rename v1 source
+	rename v2 code
+	rename v3 startyear
+	rename v4 sc_urban_used
+	rename v5 sc_urban_notused
+	rename v6 isanitation_urban_used
+	rename v7 isanitation_urban_notused
+	rename v8 shared_urban_used
+	rename v9 shared_urban_notused	
+	rename v10 opendef_urban_used
+	rename v11 opendef_urban_notused
+	rename v12 sc_rural_used
+	rename v13 sc_rural_notused
+	rename v14 isanitation_rural_used
+	rename v15 isanitation_rural_notused
+	rename v16 shared_rural_used
+	rename v17 shared_rural_notused
+	rename v18 opendef_rural_used
+	rename v19 opendef_rural_notused
+	rename v20 sc_total_used
+	rename v21 sc_total_notused
+	rename v22 isanitation_total_used
+	rename v23 isanitation_total_notused
+	rename v24 shared_total_used
+	rename v25 shared_total_notused
+	rename v26 opendef_total_used
+	rename v27 opendef_total_notused
+	drop sc_* opendef_* shared_*
+	gen urban_notused = 1 if isanitation_urban_used == . & isanitation_urban_notused != .
+	gen rural_notused = 1 if isanitation_rural_used == . & isanitation_rural_notused != .
+	replace isanitation_urban_used = isanitation_urban_notused if isanitation_urban_used == .
+	replace isanitation_rural_used = isanitation_rural_notused if isanitation_rural_used == .
+	drop isanitation*notused
+	rename isanitation_urban_used isanitation_urban
+	rename isanitation_rural_used isanitation_rural
+	rename isanitation_total_used isanitation_total_JMP
+	drop if (isanitation_urban == . | isanitation_rural == .) & isanitation_total_JMP == .
+	sort iso3 startyear code
+	order iso3 startyear code isanitation*, first
+	
+	// remove duplicates
+	duplicates tag iso3 startyear source, gen(tag)
+	bysort iso3 startyear source (rural_notused): egen num = seq()
+	drop if tag == 1 & num == 1
+	drop tag num
+	duplicates tag iso3 startyear code, gen(tag)
+	bysort iso3 startyear code (source): egen num = seq()
+	drop if tag == 1 & num == 1
+	drop tag num *notused
+
+	// save
+	compress
+	tempfile jmp_sanitation
+	save `jmp_sanitation', replace
+
+
+** import and calculate urban/rural data
+	// open file
+	insheet using "`urbrur_folder'/UN_WPP_1950_2050_ANNUAL_POPULATION_INDICATORS.csv", clear
+
+	// reduce to relevant variables and observations; calculate desired quantities
+	keep if variant == "Medium"
+	drop if location == "Micronesia"
+	keep location time poptotal popurban
+	rename location countryname
+	rename time startyear
+	tostring startyear, replace
+	gen percenturban = popurban/poptotal
+	gen percentrural = 1 - percenturban
+	drop poptotal popurban
+
+	// add iso3 to urban/rural data for merging, then save
+	merge m:1 countryname using "`codes_folder'/countrycodes_official.dta", keepusing(countryname_ihme iso3) keep(3) nogen
+	drop countryname
+	rename countryname_ihme countryname
+	destring startyear, replace
+
+	tempfile urbrur
+	save `urbrur', replace
+
+
+** merge water data with sanitation data
+use `jmp_water', replace
+merge 1:1 iso3 startyear code using `jmp_sanitation', nogen
+tempfile jmp
+save `jmp', replace
+
+
+** merge urban/rural with water and sanitation data
+replace iso3 = "DZA" if iso3 == "ALG"
+merge m:1 iso3 startyear using `urbrur'
+drop if _merge == 1	// FIXME eventually need to get different urban/rural for weighting these countries that don't have it from UN
+drop if _merge == 2
+drop _merge
+
+
+** calculate total prevalence estimate for improved sources (population weight urban/rural)
+gen iwater_mean = (percenturban*iwater_urban) + (percentrural*iwater_rural)
+gen isanitation_mean = (percenturban*isanitation_urban) + (percentrural*isanitation_rural)
+
+
+** keep only variables of interest, then generate values for other important variables
+rename source source_long
+rename code source
+keep countryname iso3 startyear source iwater_mean isanitation_mean source_long
+gen endyear = startyear
+tostring endyear, replace
+gen dattype = "REPORT"
+gen svytype = "JMP"
+gen svy = regexs(0) if regexm(source, "^([a-zA-Z]+)")
+
+gen svyver = ""
+replace svyver = "CENSUS" if svy == "CEN"
+replace svyver = "DHS" if svy == "DHS"
+replace svyver = "JMP" if svy == "JMP"
+replace svyver = "MIS" if svy == "MIS"
+replace svyver = "MICS" if svy == "MICS"
+replace svyver = "ENIGH" if svy == "ENIGH"
+replace svyver = "LSMS" if svy == "LSMS"
+replace svyver = "PAPCHILD" if svy == "PAPCHI" | svy == "PAPCHILD"
+replace svyver = "PAPFAM" if svy == "PAPFAM"
+replace svyver = "RHS" if svy == "RHS"
+replace svyver = "WHS" if svy == "WHS"
+replace svyver = "WHO" if svy == "WHO"
+replace svyver = "OTHER" if svyver == ""
+
+
+** remove review and report data
+gen drop = 0
+replace drop = 1 if regexm(source_long, "eport")
+replace drop = 0 if regexm(source_long, "urvey") | regexm(source_long, "uestion") | ///
+	regexm(source_long, "ensus")
+replace drop = 0 if svyver == "DHS" | svyver == "MICS"
+drop if drop == 1
+drop drop
+
+drop if source_long == "Euro Stat" | source_long == "EUROSTAT"
+drop if svy == "WHO"
+
+
+** convert prevalence estimates to percentages
+replace iwater_mean = iwater_mean/100
+replace isanitation_mean = isanitation_mean/100
+	
+	
+** match country names with iso codes, determine whether IHME country
+merge m:1 countryname using "`codes_folder'/countrycodes_official.dta", keepusing(countryname countryname_ihme iso3 ihme_indic_country) keep(1 3)
+drop if ihme_indic_country == 0
+drop countryname _merge ihme_indic_country
+rename countryname_ihme countryname
+
+	
+** organize and save
+order countryname iso3 startyear endyear dattype svytype svy svyver iwater_mean isanitation_mean, first
+sort countryname startyear
+capture destring startyear, replace
+
+cd "`dat_folder_jmp'"
+save "prev_jmp", replace

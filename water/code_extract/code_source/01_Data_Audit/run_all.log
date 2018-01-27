@@ -1,0 +1,41 @@
+------------------------------------------------------------------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  H:/rf_code/water/code_extract/code_source/01_Data_Audit/run_all.log
+  log type:  text
+ opened on:  13 Sep 2016, 11:35:04
+
+. 
+. . include "C:\Users\wgodwin\AppData\Local\Temp\statacmd.tmp"
+
+.         if regexm("`steps_to_run'", "extract") {
+.                         di in red _newline _newline "Extracting file list for survey families..."
+
+
+Extracting file list for survey families...
+.                         local do_files: dir "${code_folder}/03.Extract Files" files "*.do", respectcase
+.                         foreach f of local do_files {
+  2.                                 di in red "`f'"
+  3.                                 do "${code_folder}/03.Extract Files/`f'"
+  4.                         }
+extract_files_mics.do
+
+. // File Name: extract_files_mics.do
+. 
+. // File Purpose: Extract appropriate survey datasets from MICS surveys
+. // Author: Leslie Mallinger
+. // Date: 3/12/10
+. // Edited on: 1/3/2011 (updated to reflect new file paths - no longer split into MICS2 and MICS3)
+. 
+. // Additional Comments: 
+. 
+. 
+. clear all
+
+. // macro drop _all
+. set mem 500m
+set memory ignored.
+    Memory no longer needs to be set in modern Statas; memory adjustments are performed on the fly automatically.
+
+. set more off
+
+. capture log close

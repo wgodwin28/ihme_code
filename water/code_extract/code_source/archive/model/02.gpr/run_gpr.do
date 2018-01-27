@@ -1,0 +1,157 @@
+// File Name: run_gpr.do
+
+// File Purpose: GPR
+// Author: Leslie Mallinger
+// Date: 7/20/2011
+// Edited on: 
+
+// Additional Comments:  Adapted from GPR code by Kyle Foreman, which was then adapted by Kathryn Andrews.  Obtained 7/20/2011
+
+** *************************************** NOTES ***************************************************
+// THIS MUST BE RUN ON THE CLUSTER!
+** *************************************************************************************************
+
+
+clear all
+set mem 500m
+set more off
+capture log close
+capture restore, not
+
+
+** create locals for relevant files and folders
+** local code_folder "Project/COMIND/Water and Sanitation/Smoothing/GPR Code/"
+local spacetime_folder "$output_folder"
+local gpr_input_folder "C:/Users/tomflem/Documents/Covariates/Updates/water_sanitation/model/gpr_input"
+local gpr_results_folder "C:/Users/tomflem/Documents/Covariates/Updates/water_sanitation/model/gpr_output"
+local iters 1000
+
+
+** loop through water and sanitation to do this for each
+** local i 1
+forvalues j =2/2 {
+	if `j' == 1 local measures water sanitation combined
+	else local measures water sanitation
+	
+	** local measure water
+	foreach measure of local measures {
+		** pull first initial of measurement type
+		if "`measure'" == "water" {
+			local m w
+		}
+		else if "`measure'" == "sanitation"{
+			local m s
+		}
+		else {
+			local m c
+		}
+		
+		** designate thesis vs. covariate results
+		if `j' == 1 {
+			local m `m'_thesis
+		}
+		else {
+			local m `m'_covar
+		}
+
+		** open spacetime results
+		use "`spacetime_folder'/`m'_B_results.dta", clear
+
+		** calculate GPR parameters
+			// amplitude
+			generate spacetime_amplitude_1 = 1.4826 * mad_estimate
+
+			// data variance
+				** fill in SEM for observations without it as the 75th percentile of the observed SEMs
+				centile i`measure'_sem, centile(75)
+				replace i`measure'_sem = `r(c_1)' if actual_prev != . & (i`measure'_sem == . | i`measure'_sem == 0)
+				
+				** calculate data variance
+				forvalues x=1/300 {
+					gen logit_var_`x' = logit(rnormal(actual_prev, i`measure'_sem))
+				}
+				egen logit_var_sd = rowsd(logit_var_*)
+				gen spacetime_data_variance_1 = data_var + logit_var_sd^2
+				
+				** increase data variance for subnational data
+				replace spacetime_data_variance_1 = spacetime_data_variance_1*10 if national == 0 | plot == "JMP"
+				drop logit_var_*
+
+		** cleanup and save full dataset
+			// rename
+			rename i`measure'_mean_logit lt_prev
+			rename step2_prev_transformed spacetime_1
+
+			// organize
+			sort iso3 year
+
+			// save
+			tempfile full_data
+			save `full_data', replace
+
+		** cleanup and save dataset for GPR input
+			// reduce variables
+			keep iso3 year lt_* *_data_variance_1 spacetime_* *_amplitude_1
+			
+			// get rid of duplicate estimates by making them missing
+			bysort iso3 year: gen keep = _n
+			replace spacetime_1 = . if keep != 1
+			replace spacetime_amplitude = . if keep != 1
+			drop keep
+
+			// save
+			outsheet using "`gpr_input_folder'/gpr_input_data_`m'.csv", comma replace
+
+			
+		** write a python script to perform GPR
+		global dvs = lt_prev
+		** file open gpr_py using "`prefix'/`code_folder'/gpr_inputs_`m'.py", write replace
+		** file write gpr_py	"import sys" _n ///
+							** "sys.path.append('/home/j/`code_folder'')" _n ///
+							** "import GPR" _n ///
+							** "reload(GPR)" _n ///
+							** "number_submodels = 1" _n ///
+							** "iters = `iters'" _n ///
+							** "infile = '/home/j/`gpr_input_folder'/gpr_input_data_`m'.csv'" _n ///
+							** "outfile = '/home/j/`gpr_results_folder'/gpr_temp_output_`m'.csv'" _n ///
+							** "scale = 7" _n ///
+							** "dv_list = 'lt_prev'" _n ///
+							** "GPR.fit_GPR(infile, outfile, dv_list, scale, number_submodels, iters)" _n
+		** file close gpr_py
+	
+		** run GPR
+		ashell python GPR.py "`gpr_input_folder'/gpr_input_data_`m'.csv" "`gpr_results_folder'/gpr_temp_output_`m'.csv" "lt_prev" 7 1 1000
+		return list
+		
+		** open GPR results
+		insheet using "`gpr_results_folder'/gpr_temp_output_`m'.csv", comma clear
+		rename age_group year
+	
+		** fix missing values
+		qui destring gpr_1_spacetime_mean, replace force
+		forvalues i = 1/`iters' {
+			qui destring gpr_1_spacetime_d`i', replace force
+		}
+
+		** transform to normal space and rename
+		forvalues n = 1/1000 {
+			replace gpr_1_spacetime_d`n' = invlogit(gpr_1_spacetime_d`n')
+			rename gpr_1_spacetime_d`n' gpr_draw`n'
+		}
+		
+		** save draw-level GPR results without original data
+		compress
+		save "`gpr_results_folder'/gpr_results_`m'.dta", replace
+		
+		** combine with original data
+		merge 1:m iso3 year using `full_data'
+
+		** save summary GPR results with original data
+		egen gpr_mean = rowmean(gpr_draw*)
+		egen gpr_lower = rowpctile(gpr_draw*), p(2.5)
+		egen gpr_upper = rowpctile(gpr_draw*), p(97.5)
+		drop gpr_draw*
+		compress
+		save "`gpr_results_folder'/gpr_results_`m'_with_orig_data.dta", replace
+	}
+}

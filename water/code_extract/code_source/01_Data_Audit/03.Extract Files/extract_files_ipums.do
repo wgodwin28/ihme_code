@@ -1,0 +1,126 @@
+// File Name: extract_files_ipums.do
+
+// File Purpose: Extract water and sanitation versions of IPUMS data
+// Author: Leslie Mallinger
+// Date: 7/11/2011
+// Edited on: 
+
+// Additional Comments: 
+
+**housekeeping
+clear all
+set mem 500m
+set more off
+capture log close
+
+
+** create locals for relevant files and folders
+local dat_folder_ipums "J:/DATA/IPUMS_CENSUS"
+local dat_folder_new_ipums "${data_folder}/IPUMS"
+local codes_folder "J:/Usable/Common Indicators/Country Codes"
+
+cap mkdir "`dat_folder_new_ipums'"
+
+
+** extract survey file paths into mata, then put them into Stata
+	// initialize mata vector
+	local maxobs 1000
+	mata: filepath_full = J(`maxobs', 1, "")
+	mata: filedir = J(`maxobs', 1, "")
+	mata: filename = J(`maxobs', 1, "")
+	local obsnum = 1
+
+	// loop through directories and extract files and file paths
+	local iso_list: dir "`dat_folder_ipums'" dirs "*", respectcase
+	foreach i of local iso_list {
+		local year_list: dir "`dat_folder_ipums'/`i'" dirs "*", respectcase
+		foreach y of local year_list {
+			// extract censuses
+			local filenames: dir "`dat_folder_ipums'/`i'/`y'" files "*WATER_SANITATION*", respectcase
+			foreach f of local filenames {
+				mata: filepath_full[`obsnum', 1] = "`dat_folder_ipums'/`i'/`y'/`f'"
+				mata: filedir[`obsnum', 1] = "`dat_folder_ipums'/`i'/`y'"
+				mata: filename[`obsnum', 1] = "`f'"
+				local obsnum = `obsnum' + 1
+			}
+		}
+	}
+	
+	foreach i of local iso_list {
+		local year_list: dir "`dat_folder_ipums'/`i'" dirs "*", respectcase
+		foreach y of local year_list {
+			// extract censuses
+			local filenames: dir "`dat_folder_ipums'/`i'/`y'" files "*WATER_SAN_*", respectcase
+			foreach f of local filenames {
+				mata: filepath_full[`obsnum', 1] = "`dat_folder_ipums'/`i'/`y'/`f'"
+				mata: filedir[`obsnum', 1] = "`dat_folder_ipums'/`i'/`y'"
+				mata: filename[`obsnum', 1] = "`f'"
+				local obsnum = `obsnum' + 1
+			}
+		}
+	}
+	
+	getmata filepath_full filedir filename
+	drop if filepath_full == ""
+	drop if regexm(filedir, "CRUDE")
+	
+	
+** parse each part of the filename into informative variables
+	local fileregex "^([a-zA-Z]+)[_]+([a-zA-Z]+)[_]([0-9]+)[_]*([0-9]*)[_]+([a-zA-Z]+)[_]([a-zA-Z]+)"
+
+	// iso code
+	gen iso3 = regexs(1) if regexm(filename, "`fileregex'")
+	
+	// survey
+	gen svy = regexs(2) if regexm(filename, "`fileregex'")	
+	
+	// years
+	gen startyear = regexs(3) if regexm(filename, "`fileregex'")
+	gen endyear = regexs(4) if regexm(filename, "`fileregex'")
+	replace endyear = startyear if endyear == ""
+	
+	destring startyear, replace
+	drop if startyear < 1970
+	tostring startyear, replace
+	
+	// fix weird files
+	replace iso3 = "IDN" if iso3 == "" & regexm(filename, "IDN")
+	replace iso3 = "URY" if iso3 == "" & regexm(filename, "URY")
+	replace svy = "SUPAS" if svy == "" & regexm(filename, "SUPAS")
+	replace svy = "ENHA" if svy == "" & regexm(filename, "ENHA")
+	foreach year in 1985 1995 2005 2006 {
+		replace startyear = "`year'" if startyear == "." & regexm(filename, "`year'")
+	}
+	replace endyear = startyear if endyear == ""
+
+	replace iso3 = "USA" if filedir == "J:/DATA/IPUMS_CENSUS/USA/2005" 
+	replace iso3 = "ZAF" if filedir == "J:/DATA/IPUMS_CENSUS/ZAF/2007" 
+	replace startyear = "2007" if filedir == "J:/DATA/IPUMS_CENSUS/ZAF/2007" 
+	replace endyear = startyear if filedir == "J:/DATA/IPUMS_CENSUS/ZAF/2007" 
+	
+** match ISO codes with country names, determine whether IHME country
+	// prepare countrycodes database
+	preserve
+	use "`codes_folder'/countrycodes_official.dta", clear
+	keep if countryname == countryname_ihme
+	drop if iso3 == ""
+	tempfile countrycodes
+	save `countrycodes', replace
+	restore
+
+	// merge together
+	merge m:1 iso3 using `countrycodes', keepusing(countryname ihme_country)
+	drop if _merge == 2
+	drop _merge
+	
+** organize
+order countryname iso3 ihme_country startyear endyear, first
+sort countryname startyear
+compress
+
+
+cd "`dat_folder_new_ipums'"
+save "datfiles_ipums", replace
+
+
+capture log close

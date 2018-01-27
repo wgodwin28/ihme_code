@@ -1,0 +1,136 @@
+// File Name: enigh_std_mexico_2002.do
+
+// File Purpose: Create standardized dataset with desired variables from ENIGH Mexico 2002 Survey
+// Author: Leslie Mallinger
+// Date: 8/3/2010
+// Edited on: 
+
+// Additional Comments: 
+
+
+clear all
+macro drop _all
+set mem 500m
+set more off
+capture log close
+
+
+** create locals for relevant files and folders
+local log_folder "J:/Project/COMIND/Water and Sanitation/Data Audit/Code/02.Standardize Other Surveys"
+local dat_folder "J:\DATA\MEX\SURVEY_INCOME_AND_HOUSEHOLD_EXPENDITURE_ENIGH\2002"
+local dat_folder_other_merged "J:/Project/COMIND/Water and Sanitation/Data Audit/Data/Other/Merged Original Files"
+local codes_folder "J:/Usable/Common Indicators/Country Codes"
+
+
+
+** water, sanitation dataset
+	use "`dat_folder'/MEX_ENIGH_2002_HOUSEHOLD.DTA", clear
+	tempfile hhserv
+	save `hhserv', replace
+		** hhid
+	
+** ** household weights dataset
+	** use "`dat_folder_lsms'/`dat_folder_country'/za94cdta/STRATA2", clear
+	** tempfile hhweight
+	** save `hhweight', replace
+		** ** hhid
+		
+** ** psu, urban/rural dataset
+	** use "`dat_folder_lsms'/`dat_folder_country'/za94cdta/STRATA2", clear
+	** tempfile hhpsu
+	** save `hhpsu', replace
+		** ** nh and clust
+	
+
+** merge
+** use `hhweight', clear
+** merge 1:m hhid using `hhserv'
+** drop if _merge != 3
+** drop _merge
+** merge 1:1 nh clust using `hhpsu'
+** drop _merge
+
+
+** apply labels
+destring agua23, replace
+replace agua23 = . if agua23 == 0
+label variable agua23 "la vivienda tiene agua entubada?"
+label define running 1 "si" 2 "no"
+label values agua23 running
+
+destring agua29, replace
+replace agua29 = . if agua29 == 0
+label variable agua29 "entonces de donde obtiene el agua?"
+label define agua29 1 "agua de llave publica" 2 "de una pipa del servicio publico" /// 
+	3 "de una pipa del servicio particular" 4 "de pozo" 5 "por acarreo de un arroyo, jaguey, rio, etcetera" /// 
+	6 "se espera a que llegue nuevamente a la llave de su vivienda?" 7 "otra fuente"
+label values agua29 agua29
+
+gen wsource = .
+replace wsource = 1 if agua23 == 1	// running water
+replace wsource = 2 if agua29 == 1 & wsource == .	// agua de llave publica
+replace wsource = 3 if agua29 == 2 & wsource == .	// de una pipa del servicio publico
+replace wsource = 4 if agua29 == 3 & wsource == .	// de una pipa del servicio particular
+replace wsource = 5 if agua29 == 4 & wsource == .	// de pozo
+replace wsource = 6 if agua29 == 5 & wsource == .	// por acarreo de un arroyo, jaguey, rio, etcetera
+replace wsource = 7 if (agua29 == 6 | agua29 == 7) & wsource == .	// otra fuente
+label define wsource 1 "running water" 2 "agua de llave publica" 3 "de una pipa del servicio publico" ///
+	4 "de una pipa del servicio particular" 5 "de pozo" 6 "por acarreo de un arroyo, jaguey, rio, etcetera" ///
+	7 "otra fuente"
+label values wsource wsource
+
+destring bano31, replace
+replace bano31 = . if bano31 == 0
+label variable bano31 "esta vivienda tiene cuarto de bano?"
+label define sino 1 "si" 2 "no"
+label values bano31 sino
+
+destring bano32, replace
+replace bano32 = . if bano32 == 0
+label variable bano32 "esta vivienda tiene ... tipo servicio sanitario"
+label define ttype1 1 "hoyo negro o pozo ciego" 2 "letrina" 3 "excusado o sanitario" 4 "no dispone de servicio sanitario"
+label values bano32 ttype1
+
+destring bano33, replace
+replace bano33 = . if bano33 == 0
+label variable bano33 "la letrina, excusado o sanitario ..."
+label define ttype2 1 "le echa agua con cubeta" 2 "tiene conexion de agua" 3 "no le echa agua"
+label values bano33 ttype2
+
+destring bano34, replace
+replace bano34 = . if bano34 == 0
+label variable bano34 "el hoyo negro o pozo ciego, letrina o excusado es exclusivo para los residentes de la vivienda?"
+label values bano34 sino
+
+destring drenaje35, replace
+replace drenaje35 = . if drenaje35 == 0
+label variable drenaje35 "la letrina, el excusado o sanitario cuenta con drenaje..."
+label define drenaje35 1 "con desague al suelo, rio o lago, grieta, barranca, sotano, cenote, hoyo, etcetera" ///
+	2 "conectado a una fosa septica" 3 "conectado al de la calle" 4 "otro tipo de desague"
+label values drenaje35 drenaje35
+
+gen ttype = .
+label variable ttype "toilet type"
+replace ttype = 1 if bano32 == 1	// hoyo negro o pozo ciego
+replace ttype = 2 if bano32 == 2 & bano33 == 1	// letrina con rubor
+replace ttype = 3 if bano32 == 2 & bano33 == 2	// letrina con conexion de agua
+replace ttype = 4 if bano32 == 2 & bano33 == 3	// letrina sin conexion de agua
+replace ttype = 5 if bano32 == 3 & drenaje35 == 2	// excusado o sanitario conectado a una fosa septica
+replace ttype = 6 if bano32 == 3 & (bano33 == 1 | bano33 == 2) & ttype == .	// excusado o sanitario con rubor o conexion de agua
+replace ttype = 7 if bano32 == 3 & bano33 == 3 & ttype == .	// excusado o sanitario sin conexion de agua
+replace ttype = 8 if bano32 == 4	// no dispone de servicio sanitario
+label define ttype 1 "hoyo negro o pozo ciego" 2 "letrina con rubor" 3 "letrina con conexion de agua" ///
+	4 "letrina sin conexion de agua" 5 "excusado o sanitario conectado a una fosa septica" ///
+	6 "excusado o sanitario con rubor o conexion de agua" 7 "excusado o sanitario sin conexion de agua" ///
+	8 "no dispone de servicio sanitario"
+label values ttype ttype
+
+destring estrato, replace
+
+
+** save
+cd "`dat_folder_other_merged'"
+save "enigh_mexico_2002", replace
+
+
+capture log close
