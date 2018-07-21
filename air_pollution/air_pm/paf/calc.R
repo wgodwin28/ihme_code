@@ -18,7 +18,7 @@ options(scipen = 999)
 if (Sys.info()["sysname"] == "Linux") {
   
   j_root <- "/home/j" 
-  h_root <- "/homes/jfrostad"
+  h_root <- "/homes/wgodwin"
   arg <- commandArgs()[-(1:3)]  # First args are for unix use only
   
   #toggle for targeted run on cluster
@@ -110,21 +110,21 @@ dir.create(file.path(out.paf.dir, "draws"))
 #----FUNCTIONS----------------------------------------------------------------------------------------------------------  
 ##function lib##
 #PAF functions#
-paf.function.dir <- file.path(h_root, '_code/risks/air_pm/paf/_lib')  
+paf.function.dir <- file.path(h_root, 'risk_factors2/air_pollution/air_pm/paf/_lib')  
 file.path(paf.function.dir, "paf_helpers.R") %>% source
 
 #RR functions#
-rr.function.dir <- file.path(h_root, '_code/risks/air_pm/rr/_lib') 
+rr.function.dir <- file.path(h_root, 'risk_factors2/air_pollution/air_pm/rr/_lib') 
 file.path(rr.function.dir, "functional_forms.R") %>% source
 fobject <- get(rr.functional.form)  
 
 #AiR PM functions#
-air.function.dir <- file.path(h_root, '_code/risks/air_pm/_lib')
+air.function.dir <- file.path(h_root, 'risk_factors2/air_pollution/air_pm/_lib')
 # this pulls the miscellaneous helper functions for air pollution
 file.path(air.function.dir, "misc.R") %>% source()
 
 #general functions#
-central.function.dir <- file.path(h_root, "_code/_lib/functions/")
+central.function.dir <- file.path(h_root, "risk_factors2/air_pollution/_lib/functions/")
 # this pulls the general misc helper functions
 file.path(central.function.dir, "misc.R") %>% source()
 # this pulls the current locations list
@@ -145,6 +145,7 @@ location.id <- locations[ihme_loc_id == country, location_id]
 paste0(exp.grid.dir, "/", country, ".Rdata") %>% 
   file.path %>%
   load(envir = globalenv())
+exp <- fread(paste0(exp.grid.dir, "/", country, ".csv"))
 
 # Potential cleanup
 exp <- exp[!is.na(pop) & pop > 0, ] # Get rid of grids that have missing/0 pop since they have a weight of 

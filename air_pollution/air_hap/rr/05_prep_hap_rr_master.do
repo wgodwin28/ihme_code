@@ -22,7 +22,7 @@ set maxvar 30000
 **Set relevant locals** TOGGLE THESE
 local split_rr			0
 local save_result		1
-local version 			1
+local version 			2
 adopath + "$j/temp/central_comp/libraries/current/stata"
 
 
@@ -36,6 +36,7 @@ adopath + "$j/temp/central_comp/libraries/current/stata"
 
 /* version: for GBD 2017
 1: initial RRs for GBD 2017, testing out machinery 01/09/2018
+2: run with updated IER curve, 02/25/2018
 */
 
 local out_dir_draws		"/share/epi/risk/temp/air_hap/rr/`version'/save_results"
@@ -69,9 +70,10 @@ cap mkdir "`out_dir_draws'"
 // Save result. CHECK ON HOW MANY SLOTS THIS REQUIRES
 // use this call to avoid memory issues---> qlogin -now no -P proj_custom_models -q all.q@@c6320hosts -l mem_free=256 -pe multi_slot 40
 if `save_result'==1 {
-	local years = "1990 1991 1992 1993 1994 1995 1996 1997 1998 1999 2000 2001 2002 2003 2004 2005 2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016 2017"
+	//local years = "1990 1991 1992 1993 1994 1995 1996 1997 1998 1999 2000 2001 2002 2003 2004 2005 2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016 2017"
+	local years = "1990 2005 2017"
 	run "$j/temp/central_comp/libraries/current/stata/save_results_risk.ado"
-	save_results_risk, modelable_entity_id(9020) description(fill using GBD 2016 model with GBD 2017 locations and years) input_dir(`out_dir_draws') input_file_pattern(rr_{location_id}_{year_id}_{sex_id}.csv) risk_type(rr) mark_best("T")
+	save_results_risk, modelable_entity_id(9020) year_id(`years') description(updated IER ahead of review week, including 2005...) input_dir(`out_dir_draws') input_file_pattern(rr_{location_id}_{year_id}_{sex_id}.csv) risk_type(rr) mark_best("T")
 }
 
 *******************************

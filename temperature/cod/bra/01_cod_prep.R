@@ -24,14 +24,7 @@ stata_dt <- function(x){
   dt <- read_dta(x) %>% as.data.table
   print(paste("reading", x))
   return(dt)}
-#####################################################################################
-################## United States COD Prep ###########################################
-#####################################################################################
-for(year in 1990:2016){
-  codpath <- paste0(j, "LIMITED_USE/PROJECT_FOLDERS/USA/NVSS_MORTALITY/", year, "/")
-  outpath <- paste0(j, "temp/wgodwin/temperature/cod/us/")
-  test <- read.table(paste0(codpath, "USA_NVSS_MORTALITY_1989_COUNTIES_Y2017M08D11.TXT"), header = T)
-}
+
 #####################################################################################
 ################### Brazil COD Prep #################################################
 #####################################################################################
@@ -40,9 +33,9 @@ codpath <- paste0(j, "LIMITED_USE/PROJECT_FOLDERS/BRA/GBD_FROM_COLLABORATORS/SIM
 outpath <- paste0(j, "temp/wgodwin/temperature/cod/bra/")
 
 ############# 2013,2014,2015 years prep #############################################
-#bra <- fread(paste0(j, "LIMITED_USE/PROJECT_FOLDERS/BRA/GBD_FROM_COLLABORATORS/SIM/BRA_SIM_2014_DEATHS_ICD10_BY_STATE_Y2016M10D19.CSV"))
-bra <- fread(paste0(j, "LIMITED_USE/PROJECT_FOLDERS/BRA/GBD_FROM_COLLABORATORS/SIM/BRA_SIM_2015_DEATHS_ICD10_BY_STATE_Y2016M10D26.CSV"))
-#bra <- read_dta(paste0(j, "LIMITED_USE/PROJECT_FOLDERS/BRA/GBD_FROM_COLLABORATORS/SIM/BRA_2013_MORT_Y2014M11D04.DTA")) %>% as.data.table
+#bra <- fread(paste0(codpath, "BRA_SIM_2014_DEATHS_ICD10_BY_STATE_Y2016M10D19.CSV"))
+bra <- fread(paste0(codpath, "BRA_SIM_2015_DEATHS_ICD10_BY_STATE_Y2016M10D26.CSV"))
+#bra <- read_dta(paste0(codpath, "BRA_2013_MORT_Y2014M11D04.DTA")) %>% as.data.table
 vars <- length(names(bra))
 setnames(bra, tolower(names(bra[1:vars])))
 bra <- bra[, .(dtobito, dtnasc, sexo, codmunocor, codmunres, causabas)]

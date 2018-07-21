@@ -34,7 +34,8 @@ outpath <- paste0(j, "temp/wgodwin/temperature/cod/nza/")
 dt <- read_dta(paste0(codpath, "NZL_MORT_COLLECTION_1988_2014_DEATHS_BY_AGE_SEX_ICD_MAORI_NON_MAORI_Y2017M10D02.dta")) %>% as.data.table
 setnames(dt, c("DOD", "DOB", "SEX", "DHBDOM", "icdd", "prioritised_ethnic_group"),
          c("death_date", "birth_date", "sex_id", "dhb12", "icd10", "race"))
-dt <- dt[, c("death_date", "birth_date", "sex_id", "dhb12", "icd10", "race")]
+dt[, icd9 := icd10]
+dt <- dt[, c("death_date", "birth_date", "sex_id", "dhb12", "icd10", "race", "icd9")]
 dt[, dhb12 := as.integer(dhb12)]
 dt[, country_id := 72]
 dt[sex_id == "M", sex_id := "1"]
@@ -75,16 +76,29 @@ dt[, icd3 := substr(icd10, 1, 3)]
 dt[, icd10_new := paste0(icd3, ".", icd1)]
 dt[nchar(icd10) > 3, icd10 := icd10_new]
 dt[, c("icd1", "icd3", "icd10_new") := NULL]
+dt[, icd4 := substr(icd9, 4, 6)]
+dt[, icd5 := substr(icd9, 1, 3)]
+dt[, icd9_new := paste0(icd5, ".", icd4)]
+dt[nchar(icd9) > 3, icd9 := icd9_new]
+dt[, c("icd4", "icd5", "icd9_new") := NULL]
 
 #Read in gbd cause_ids
-icd_map <- fread(paste0(j, "temp/wgodwin/temperature/cod/icd_map.csv"))
-cause_map <- merge(icd_map, acauses, by="acause", all.x=T)
+icd10_map <- fread(paste0(j, "temp/wgodwin/temperature/cod/icd_map.csv"))
+cause10_map <- merge(icd10_map, acauses, by="acause", all.x=T)
+icd9_map <- fread(paste0(j, "temp/wgodwin/temperature/cod/icd9_map.csv"))
+cause9_map <- merge(icd9_map, acauses, by="acause", all.x=T)
+setnames(cause9_map, c("acause", "icd_name", "cause_id"), c("acause9", "icd_name9", "cause_id9"))
 
 #merge ICD 10 codes onto gbd cause map
-dt <- merge(dt, cause_map, by = "icd10", all.x = T)
+dt <- merge(dt, cause10_map, by = "icd10", all.x = T)
+dt <- merge(dt, cause9_map, by = "icd9", all.x = T)
+dt[is.na(acause), acause := acause9]
+dt[is.na(icd_name), icd_name := icd_name9]
+dt[is.na(cause_id), cause_id := cause_id9]
+dt[, c("acause9", "icd_name9", "cause_id9") := NULL]
 
 # clean and save
 dt[, year_id := substr(death_date, 1,4)]
-dt <- dt[year_id>1999,] #subsetting because ICD codes are in different form pre-1999
+dt <- dt[year_id>1989,] #subsetting because no temperature estimates ready pre 1989
 setnames(dt, c("adm2_code", "name", "location_id"), c("adm2_id_res", "adm2_name_res", "location_id_res"))
 write.csv(dt, paste0(outpath, "nzaCodPrepped.csv"), row.names = F)

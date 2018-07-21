@@ -15,6 +15,7 @@ set obs 1
 local central_root "`j'/WORK/01_covariates/common/ubcov_central"
 local topics wash
 local id `1'
+local outpath "`2'"
 
 // Load the base code for ubCov
 cd "`central_root'"
@@ -33,12 +34,23 @@ init, topics(`topics')
 
 
 		run_extract `id', bypass store_vals
-		do "/snfs2/HOME/wgodwin/risk_factors/wash/01_extract/custom_code.do"
-		local out_dir "`j'/temp/wgodwin/wash_exposure/extract3"
-		cap mkdir "`out_dir'/$ihme_loc_id"
-		local survey_name = subinstr("$survey_name", "/", "_", .)
-		local year_start $year_start
-		cap confirm variable empty
-		if _rc {
-			save "`out_dir'/$ihme_loc_id/`survey_name'_`year_start'", replace
+		do "/home/j/temp/wgodwin/wash_exposure/custom_code.do"
+		tostring year_start, gen(year_n)
+		tostring year_end, gen(end_year_n)
+		tostring nid, gen(nid_n)
+		local filename = survey_name + "_" + nid_n + "_" + survey_module + "_" + ihme_loc_id + "_" + year_n + "_" + end_year_n
+		local filename = subinstr("`filename'", "/", "_",.)
+		drop year_n end_year_n nid_n
+		memory
+		if r(data_data_u)>5.5e+08{
+			save "`outpath'/census/`filename'", replace
 		}
+		else{
+			save "`outpath'/survey/`filename'", replace
+		}
+
+		clear
+		set obs 1
+		gen ubcov_id = `id'
+		save "`outpath'/logs/`filename'", replace
+//end

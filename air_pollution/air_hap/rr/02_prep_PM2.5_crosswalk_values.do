@@ -35,8 +35,8 @@ set maxvar 20000
 	insheet using "`exp_factor_dir'/personal_exposure_factor_PM2.5_03022015.csv", comma clear
 
 // Calculate means for each group and draw from normal distribution
-	summ personal_pm
-	local grand_mean `r(mean)'
+	//summ personal_pm
+	//local grand_mean `r(mean)'
 
 	summ personal_pm if group == "Female" & age_start >15
 	local f_mean `r(mean)'
@@ -47,7 +47,7 @@ set maxvar 20000
 	summ personal_pm if age_start <= 15
 	local c_mean `r(mean)'
 
-/*	gen weight = .
+	gen weight = .
 	tempfile temp
 	save `temp', replace
 	
@@ -61,7 +61,7 @@ set maxvar 20000
 	}
 	egen wt_mean = wtmean(personal_pm), weight(weight)
 	local grand_mean = wt_mean
-*/
+
 	forvalues n = 0/999 {
 		gen female_exp_`n' = rnormal(`f_mean', 20)
 		gen male_exp_`n' = rnormal(`m_mean', 20)

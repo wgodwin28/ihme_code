@@ -1,15 +1,16 @@
 // Author: Will Godwin
 // Purpose: Create stacked bar plots for combined sanitation categories
 // Housekeeping
-// do "/snfs2/HOME/wgodwin/risk_factors/sanitation/code/03_final_prep/gen_stacked_bar_graph.do"
+// do "/snfs2/HOME/wgodwin/risk_factors2/wash/08_diagnostics/stacked_bar_graph_san.do"
 clear all 
 set more off
 set maxvar 30000
 
 // Set relevant locals
-local graphloc 			"/home/j/WORK/05_risk/risks/wash_sanitation/diagnostics/v1"
-local dataloc			"/home/j/WORK/05_risk/risks/wash_sanitation/data/exp/me_id/uploaded/rough_output"
-local date "06282017"
+local graphloc 			"/home/j/WORK/05_risk/risks/wash_sanitation/diagnostics/stacked"
+local dataloc			"/home/j/WORK/05_risk/risks/wash_sanitation/data/exp/04_output"
+local c_date= c(current_date)
+local date = subinstr("`c_date'", " " , "_", .)
 
 adopath + "/home/j/temp/central_comp/libraries/current/stata"
 

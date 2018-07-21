@@ -72,11 +72,11 @@ di in red "`dir'/`exp'"
 	local metrics = "proportion"
 	local mark_best = "T"
 	local file_pat = "{location_id}.csv"
-	// local years = "1990 1995 2000 2005 2010 2015 2016"
 	local years = "1990 1991 1992 1993 1994 1995 1996 1997 1998 1999 2000 2001 2002 2003 2004 2005 2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016 2017"
+	//local years = "1990 1995 2000 2005 2007 2010 2017"
 
 // Run save_results
 	quietly run "$j/temp/central_comp/libraries/current/stata/save_results_epi.ado"
 	di "save_results, modelable_entity_id(`me_id')  description(upload of GBD 2016 data, testing GBD 2017 machinery-`exp') input_dir(`dat_dir') input_file_pattern(`file_pat') mark_best(`mark_best')"
-	save_results_epi, modelable_entity_id(`me_id')  description(upload of GBD 2016 data, testing GBD 2017 machinery) input_dir(`dat_dir') input_file_pattern(`file_pat') measure_id(18) mark_best(`mark_best') 
+	save_results_epi, modelable_entity_id(`me_id') year_id(`years') description(some years for water-East Europe fix) input_dir(`dat_dir') input_file_pattern(`file_pat') measure_id(18) mark_best(`mark_best') 
 

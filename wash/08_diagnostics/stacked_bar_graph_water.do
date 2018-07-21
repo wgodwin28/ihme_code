@@ -1,7 +1,7 @@
 // Author: Will Godwin
 // Purpose: Create stacked bar plots for each country for water categories.
 // Housekeeping
-// do "/snfs2/HOME/wgodwin/risk_factors/water/code/03_final_prep/gen_stacked_bar_graph.do"
+// do "/snfs2/HOME/wgodwin/risk_factors2/wash/08_diagnostics/stacked_bar_graph_water.do"
 clear all 
 set more off
 set maxvar 32767
@@ -16,10 +16,11 @@ set maxvar 32767
 	}
 
 // Set relevant locals
-local graphloc 			"$j/WORK/05_risk/risks/wash_water/diagnostics/v1"
-local dataloc			"$j/WORK/05_risk/risks/wash_water/data/exp/me_id/uploaded/rough_output"
-local date 				"06242017"
-
+local graphloc 			"$j/WORK/05_risk/risks/wash_water/diagnostics/exposure/stacked"
+local dataloc			"$j/WORK/05_risk/risks/wash_water/data/exp/04_output"
+local c_date= c(current_date)
+local date = subinstr("`c_date'", " " , "_", .)
+//local date "27_Jun_2018"
 adopath + "$j/temp/central_comp/libraries/current/stata"
 
 

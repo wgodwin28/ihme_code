@@ -7,7 +7,7 @@
 //updated 5/1/2017 Surprise! Eliminated typhoid and paratyphoid again!
 
 //Script to run things on the cluster
-
+//do "/snfs2/HOME/wgodwin/risk_factors2/wash/05_rr/sanitation_rr_prep.do"
 
 clear
 set more off
@@ -26,7 +26,6 @@ set maxvar 30000
 //set relevant locals
 	local out_dir_draws		"/share/epi/risk/temp/wash_sanitation/rr"
 	local rf_new			"wash_sanitation"
-	local output_version	6
 	
 ** Create RR template
 	** Make up a few causes
@@ -45,7 +44,7 @@ set maxvar 30000
 	drop id 
 	
 **Prep data
-	gen cause_id = 302 // diarrhea
+	gen cause_id = 302 //diarrhea
 	gen location_id = 1
 	gen year_id = 1990
 
@@ -56,22 +55,14 @@ set maxvar 30000
 	gen rr_upper = 1 if parameter == "cat3"
 	
 	**improved (other than sewer)
-	//replace rr_mean = 2.709677419 if parameter == "cat2"
-	//replace rr_lower = 2.527777778 if parameter == "cat2"
-	//replace rr_upper = 2.851851852 if parameter == "cat2"
-	
-	replace rr_mean = 2.5815 if parameter == "cat2"
-	replace rr_lower = 2.0206 if parameter == "cat2"
-	replace rr_upper = 3.2983 if parameter == "cat2"
+	replace rr_mean = 0.83/0.31 if parameter == "cat2"
+	replace rr_lower = 0.89/0.40 if parameter == "cat2"
+	replace rr_upper = 0.77/0.24 if parameter == "cat2"
 
 	**unimproved 
-	//replace rr_mean = 3.225806452 if parameter == "cat1"
-	//replace rr_lower = 2.777777778 if parameter == "cat1"
-	//replace rr_upper = 3.703703704 if parameter == "cat1"
-	
-	replace rr_mean = 3.2238 if parameter == "cat1"
-	replace rr_lower = 2.5560 if parameter == "cat1"
-	replace rr_upper = 4.0660 if parameter == "cat1"
+	replace rr_mean = 1/0.31 if parameter == "cat1"
+	replace rr_lower = 1/0.40 if parameter == "cat1"
+	replace rr_upper = 1/0.24 if parameter == "cat1"
 
 	** Create two categories and 1000 draws
 	gen sd = ((ln(rr_upper)) - (ln(rr_lower))) / (2*invnormal(.975))
@@ -101,12 +92,12 @@ set maxvar 30000
 	gen sex_id = .
 	foreach sex in 1 2 {
 		replace sex_id = `sex'
-		export delimited "`out_dir'/rr_1_1990_`sex'.csv", replace
+		export delimited "`out_dir_draws'/rr_1_1990_`sex'.csv", replace
 	}
 	// Run save_results
-	local dat_dir "/share/epi/risk/temp/wash_sanitation/rr"
-	quietly run "/home/j/temp/central_comp/libraries/current/save_results.do"
-	save_results, modelable_entity_id(9018) description(RR update-new network meta-in house) in_dir(`dat_dir') mark_best(yes) risk_type("rr")
+	clear
+	quietly run "/home/j/temp/central_comp/libraries/current/stata/save_results_risk.ado"
+	save_results_risk, modelable_entity_id(9018) input_file_pattern("rr_{location_id}_{year_id}_{sex_id}.csv") description(RR update-a couple studies added) input_dir(`out_dir_draws') mark_best(T) risk_type("rr")
 
 *******************************
 **********end of code***********

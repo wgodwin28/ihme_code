@@ -11,11 +11,11 @@
 
 // Set locals	
 	//Risk toggle
-		local risk = "wash_sanitation"
-		//local risk = "wash_water"
+		//local risk = "wash_sanitation"
+		local risk = "wash_water"
 		//local risk = "wash_hwws"
 		//local risk = "air_hap"
-		local run = "run1"
+		local run = "run5"
 
 		if "`risk'" == "wash_sanitation" {
 			local exposures 	"improved unimp"
@@ -35,11 +35,10 @@
 
 	local code_folder	"/snfs2/HOME/wgodwin/risk_factors2/wash/04_save_results"
 	local logs 			-o /share/temp/sgeoutput/wgodwin/output -e /share/temp/sgeoutput/wgodwin/errors
-	local stata_shell 	"$j/temp/wgodwin/save_results/stata_shell.sh"
+	local stata_shell 	"/share/code/wash/04_save_results/stata_shell.sh"
 	local dir 			"/share/epi/risk/temp/`risk'/`run'/locations"
-
 
 //WaSH and HAP save_results master
 	foreach exp of local exposures {
-		! qsub -N `exp'_save_results -P proj_custom_models -pe multi_slot 2 `logs' "`stata_shell'" "`code_folder'/save_results.do" "`exp' `risk' `dir'"
+		! qsub -N `exp'_save_results -P proj_custom_models -pe multi_slot 20 `logs' "`stata_shell'" "`code_folder'/save_results.do" "`exp' `risk' `dir'"
 	}

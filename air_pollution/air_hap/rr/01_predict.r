@@ -98,6 +98,8 @@ rm(list=ls())
   dt_sdi <- dt_sdi[personal_exp == 1, monitor_loc := "personal"]
   dt_sdi <- dt_sdi[kit == 1 & personal_exp == 0, monitor_loc := "kitchen"]
   dt_sdi <- dt_sdi[kit == 0 & personal_exp == 0, monitor_loc := "living"]
+  dt_sdi[, monitor_loc := as.factor(monitor_loc)]
+  dt_sdi[, monitor_loc := relevel(monitor_loc, ref = "personal")]
   dt_sdi <- dt_sdi[measure_std==1, measure_std_new := 0]
   dt_sdi <- dt_sdi[measure_std==0, measure_std_new := 1]
   

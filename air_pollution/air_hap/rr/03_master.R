@@ -48,7 +48,7 @@ rscript <- paste0(h_root, "/risk_factors2/air_pollution/air_hap/rr/04_calc.R")
 
 # Job settings.
 draws.required <- 1000
-rr.data.version <- "16"
+rr.data.version <- "20"
 rr.model.version <- "power2_simsd_source"
 rr.functional.form <- "power2"
 prep.data <- F
@@ -61,6 +61,7 @@ prep.data <- F
 # output.version <- 5 #fixing issue with TMREL in IER
 
 output.version <- 1 #first test run for GBD 2017
+output.version <- 2 #Run through with updated IER for review week
 
 # set working directories
 home.dir <- file.path(j_root, "WORK/05_risk/risks/air_hap")
@@ -69,21 +70,21 @@ setwd(home.dir)
 #----FUNCTIONS----------------------------------------------------------------------------------------------------------  
 ##function lib##
 #PAF functions#
-paf.function.dir <- file.path(h_root, 'risk_factors/air_pollution/air_pm/paf/_lib')  
+paf.function.dir <- file.path(h_root, 'risk_factors2/air_pollution/air_pm/paf/_lib')  
 file.path(paf.function.dir, "paf_helpers.R") %>% source  
   
 #RR functions#
-rr.function.dir <- file.path(h_root, 'risk_factors/air_pollution/air_pm/rr/_lib') 
+rr.function.dir <- file.path(h_root, 'risk_factors2/air_pollution/air_pm/rr/_lib') 
 file.path(rr.function.dir, "functional_forms.R") %>% source
 fobject <- get(rr.functional.form)  
 
 #AiR HAP functions#
-hap.function.dir <- file.path(h_root, 'risk_factors/air_pollution/air_hap/rr/_lib')
+hap.function.dir <- file.path(h_root, 'risk_factors2/air_pollution/air_hap/rr/_lib')
 # this pulls the miscellaneous helper functions for air pollution
 file.path(hap.function.dir, "misc.R") %>% source()
 
 #general functions#
-central.function.dir <- file.path(h_root, "risk_factors/air_pollution/air_hap/rr/_lib")
+central.function.dir <- file.path(h_root, "risk_factors2/air_pollution/air_hap/rr/_lib")
 get.locations.dir <- file.path(j_root, "temp/central_comp/libraries/current/r")
 # this pulls the general misc helper functions
 file.path(central.function.dir, "misc.R") %>% source()
@@ -95,7 +96,8 @@ file.path(get.locations.dir, "get_location_metadata.R") %>% source()
 if (prep.data == TRUE) {
 
 	exposure.dir <- file.path(home.dir, "02_rr/02_output/01_pm_mapping/lit_db/xwalk_output")
-	exposure.version <- format(Sys.Date(), "%m%d%y")
+	exposure.version <- "010818"
+	#exposure.version <- format(Sys.Date(), "%m%d%y")
 	# results of RR curve fitting analysis
 	# parameters that define these curves are used to generate age/cause specific RRs for a given exposure level
 	rr.dir <- file.path(j_root, "WORK/05_risk/risks/air_pm", 'data/rr/output', paste0(rr.data.version, rr.model.version))

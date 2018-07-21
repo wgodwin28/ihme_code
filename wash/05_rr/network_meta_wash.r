@@ -1,37 +1,56 @@
 #load library
 library(data.table)
 library(netmeta)
+library(forestplot)
 
 #Sanitation
   dat.root <- "J:/WORK/05_risk/risks/wash_sanitation/data/rr/meta_analysis/"
   dt <- fread(paste0(dat.root, "sanitation_rr.csv"))
+  
+  #outlier some questionable studies
   #dt <- dt[reference !="Capun2"]
   dt <- dt[reference !="Capun3"]
   #dt <- dt[reference !="Capun4"]
+  dt[reference == "Capun4", reference := "Capun3"]
   
-  dt_san <- dt[, c("effectsize", "standard_error", "intervention_clean", "control_edit",
-                  "reference")]
+  #outlier open defecation studies
   dt_san <- dt[intervention_clean != "open_def" & control_edit != "."]
+  dt_san[, se := (upper95confidenceinterval - effectsize)/1.96]
+  dt_san <- dt_san[exclude == 0]
+  #dt_san <- dt_san[added_2017 == 0]
   #dt_san <- dt_san[reference !="Baker11"]
   #dt_san <- dt_san[reference !="Baker6"]
   #dt_san <- dt_san[reference !="Baker4"]
   #dt_san <- dt_san[reference !="Baker3"]
+  #dt_san <- dt_san[study_design!="case-control-gems"]
+  
+  #Transform to log
   dt_san <- dt_san[, log_rr := log(effectsize)]
-  dt_san <- dt_san[, log_se := sqrt((standard_error^2) * (1/effectsize)^2)]
+  dt_san <- dt_san[, log_se := sqrt((se^2) * (1/effectsize)^2)]
+  
+  #Clean variable values in prep for meta-analysis
+  dt_san[intervention_clean == "improved", intervention_clean := "Improved"]
+  dt_san[intervention_clean == "unimproved", intervention_clean := "Unimproved"]
+  dt_san[intervention_clean == "sewer", intervention_clean := "Sewer_connection"]
+  dt_san[control_edit == "unimproved", control_edit := "Unimproved"]
+  dt_san[control_edit == "improved", control_edit := "Improved"]
   
   net1 <- netmeta(log_rr, log_se, intervention_clean, control_edit,
                   reference, data = dt_san, sm = "RR", comb.random = T,
-                  reference.group = "unimproved")
+                  reference.group = "Unimproved")
   net1
-  forest(net1, ref="unimproved")
-
+  forest(net1, ref="Unimproved")
+  dt_san <- dt_san[reference!="Baker6"]
+  san_temp <- dt_san[intervention_clean=="Improved"]
+  forestplot(san_temp$reference, san_temp$effectsize, san_temp$lower95confidenceinterval, san_temp$upper95confidenceinterval, zero = 1)
 
 #Water
   #network meta-analysis
   dat.root <- "J:/WORK/05_risk/risks/wash_water/data/rr/meta_analysis/"
   dt <- fread(paste0(dat.root, "water_rr.csv"))
+  dt[, se := (upper95confidenceinterval - effectsize)/1.96]
   dt <- dt[, log_rr := log(effectsize)]
-  dt <- dt[, log_se := sqrt((standard_error^2) * (1/effectsize)^2)]
+  dt <- dt[, log_se := sqrt((se^2) * (1/effectsize)^2)]
   #dt <- dt[added_2016 == 0,]
   dt <- dt[reference !="Capuno J3"]
   dt <- dt[reference !="Capuno J4"]
@@ -44,33 +63,22 @@ library(netmeta)
                                                       "control_clean",
                                                       "reference")]
   
+  #Clean up variable values for prettier forest plot
+  dt_source[intervention_clean == "filter", intervention_clean := "Filter/boil"]
+  dt_source[intervention_clean == "solar", intervention_clean := "Solar/chlorine"]
+  dt_source[intervention_clean == "improved", intervention_clean := "Improved"]
+  dt_source[intervention_clean == "hq_piped", intervention_clean := "HQ_piped"]
+  dt_source[intervention_clean == "piped", intervention_clean := "Bas_piped"]
+  dt_source[control_clean == "unimproved", control_clean := "Unimproved"]
+  dt_source[control_clean == "piped", control_clean := "Bas_piped"]
+  dt_source[control_clean == "improved", control_clean := "Improved"]
+  
   net1 <- netmeta(log_rr, log_se, intervention_clean, control_clean,
                   reference, data = dt_source, sm = "RR", comb.random = T, 
-                  reference.group = "unimproved")
+                  reference.group = "Unimproved")
   net1
-  forest(net1, ref="unimproved")
   
-  netconnection(control_group, intervention_clean, reference, data = dt)
+  forest(net1, ref="Unimproved", xlab ="Relative Risk")
+  
+  netconnection(control_clean, intervention_clean, reference, data = dt)
  
-## Scrap ##
-  # #Solar/chlorine treatment-basic meta-regression
-  # dt <- fread("J:/temp/wgodwin/meta_analysis/wash/water_rr1.csv")
-  # dt <- dt[, log_rr := log(effectsize)]
-  # dt <- dt[, log_se := sqrt((standard_error^2) * (1/effectsize)^2)]
-  # dt_solar <- dt[intervention_clean == "solar",]
-  # meta_solar <- metagen(log_rr, log_se, data = dt_solar,  backtransf = T, sm= "RR")
-  # forest(meta_solar)
-  # rr <- exp(meta_solar$TE.random)
-  # lower <- exp(meta_solar$lower.random)
-  # upper <- exp(meta_solar$upper.random)
-  # 
-  # #Filter/boil treatment- basis meta-regression
-  # dt <- fread("J:/temp/wgodwin/meta_analysis/wash/water_rr1.csv")
-  # dt <- dt[, log_rr := log(effectsize)]
-  # dt <- dt[, log_se := sqrt((standard_error^2) * (1/effectsize)^2)]
-  # dt_filter <- dt[intervention_clean == "filter",]
-  # meta_filter <- metagen(log_rr, standard_error, data = dt_filter, backtransf = T, sm = "RR", comb.random = T)
-  # filter_rr <- exp(meta_filter$TE.random)
-  # filter_lower <- exp(meta_filter$lower.random)
-  # filter_upper <- exp(meta_filter$upper.random)
-  # 
