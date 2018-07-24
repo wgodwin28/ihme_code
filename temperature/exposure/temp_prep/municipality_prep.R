@@ -9,16 +9,6 @@ if(Sys.info()[1]=='Windows'){
   j = '/home/j/'
 }
 
-#load libraries
-# for(ppp in c('parallel', 'rgdal', 'sp', 'raster','ncdf4','data.table', 'ggplot2')){
-#   library(ppp, lib.loc = pack_lib, character.only =T)
-# }
-
-#install pacman library
-#if("pacman" %in% rownames(installed.packages())==FALSE){
-#  library(pacman,lib.loc="/homes/wgodwin/R/x86_64-pc-linux-gnu-library/3.3")
-#}
-
 # load packages, install if missing  
 pack_lib = '/snfs2/HOME/wgodwin/R'
 .libPaths(pack_lib)
@@ -32,7 +22,7 @@ data.dir = paste0(j,'WORK/05_risk/risks/temperature/data/exp/prepped/mean/', pro
 out.dir = paste0(j,'WORK/05_risk/risks/temperature/data/exp/prepped/', iso,'/', proj, '/')
 shapefile.dir = paste0(j, "WORK/05_risk/risks/temperature/data/exp/shapes/", iso, "/", iso)
 map.dir = paste0(j,'WORK/05_risk/risks/temperature/diagnostics/')
-pop.dir <- paste0(j, "WORK/05_risk/risks/temperature/data/exp/pop/", iso, "/all_age/")
+pop.dir <- paste0(j, "WORK/11_geospatial/01_covariates/00_MBG_STANDARD/worldpop/total/1y/")
 code.dir = paste0('/snfs2/HOME/wgodwin/temperature/')
 
 #source locations function
@@ -42,8 +32,12 @@ source(paste0(j, "temp/central_comp/libraries/current/r/get_location_metadata.R"
 source(paste0(code.dir, 'functions/era_functions.R'))
 
 ########Read in shapefile and extract##########
-#if(iso == "us"){borders <- readOGR(paste0(shapefile.dir, "cb_2016_us_county_500k.shp"))}
 borders <- readOGR(paste0(shapefile.dir, "_admin2.shp"))
+
+#create fake raster with dimensions of temp raster
+b <- raster()
+extent(b) <- extent(borders)
+res(b) <- .5
 
 #Loop through years
 for(year in c(2017)){
@@ -52,25 +46,36 @@ for(year in c(2017)){
   brik <- rotate(brik) # b/c era raster coordinates is from 0 to 360 and needs to be -180 to 180
   brik <- crop(brik, borders)
   
-  
   #NEED TO PULL IN POPS AND EXTRACT IN ORDER TO POP WEIGHT
+  #Read in and crop pop
+  pop <- raster(paste0(pop.dir, 'worldpop_total_1y_',year,'_00_00', '.tif'))
+  pop <- crop(pop, borders)
+  pop <- resample(pop, b, method = "bilinear")
   
-  ##extract temperatures to the municipality
+  #multiply temp times pop and resample to .05 x .05 resolution
+  pop <- resample(pop, brik, method = "ngb")
+  brik <- brik * pop
+  
+  ##extract weighted temperature and pop to the municipality
   print(paste0("extracting ", year))
   #ugh <- extract(brik, borders, fun=mean, na.rm = T) %>% as.data.table
-  ugh <- extract(brik, coordinates(borders), fun = mean, na.rm = T, method='bilinear')
+  ugh <- extract(brik, coordinates(borders), fun = sum, na.rm = T, method='bilinear')
+  pop <- extract(pop, coordinates(borders), fun = sum, na.rm = T, method='bilinear')
   
   ##add on important metadata- muni codes
   bord <- cbind(as.numeric(as.character(borders@data$adm2_code)), as.character(borders@data$adm2_name)) %>% as.data.table
-  #if(iso == "us"){bord <- cbind(as.numeric(as.character(borders@data$GEOID)), as.character(borders@data$NAME)) %>% as.data.table}
   setnames(bord, c("V1", "V2"), c("adm2_id", "adm2_name"))
   ugh <- cbind(ugh, bord)
+  pop <- cbind(pop, bord)
   
   ##melt down by day
   dt <- melt(ugh, id = c("adm2_id", "adm2_name"))
-  dt[, day := substring(as.character(variable), 2, 7)]
-  setnames(dt, "value", "temperature")
   
+  #merge on pops by admin2 and divide by them to finish pop weighting
+  dt <- merge(dt, pop, by = c("adm2_id", "adm2_name"))
+  dt[, temperature := value / pop]
+  dt[, day := substring(as.character(variable), 7, 9)]
+
   #Extract for tiny municipalities that didn't extract correctly
   missing.munis <- dt[is.na(temperature), unique(adm2_id)]
   missing.countries.vals <- mclapply(missing.munis,
@@ -119,34 +124,3 @@ for(year in 1990:2017){
 }
 all.dt <- all.dt[, lapply(.SD, mean), .SDcols = "temperature", by = c("adm2_id")]
 write.csv(all.dt, paste0(out.dir, "/annual/all_years.csv"), row.names = F)
-#u <- fread("/home/j/LIMITED_USE/PROJECT_FOLDERS/USA/NVSS_MORTALITY/us_counties/parsed_microdata/cleaned/data_1990_cleaned.csv")
-
-
-out.dir <- paste0(j,'WORK/05_risk/risks/temperature/data/exp/prepped/mex/era_interim')
-
-dt <- fread(paste0(j,'WORK/05_risk/risks/temperature/data/exp/prepped/bra/era_interim/municipality_temp_1989.csv'))
-files <- list.files(path = out.dir, pattern = ".csv", full.names = T)
-dt <- rbindlist(lapply(files, fread), fill = T)
-dt[, date := as.Date(date)]
-lag_coords_30 <- function(i, data){
-  d <- data[adm2_id == i,]
-  d[, mmt := sapply(1:nrow(d), mean_lag_30, data = d)]
-  return(d)
-}
-
-start_time <- Sys.time()
-adm2s <- unique(dt$adm2_id)
-dt <- mclapply(adm2s, lag_coords_30, data = dt, mc.cores = 15) %>% rbindlist
-end_time <- Sys.time()
-end_time - start_time
-
-dt[, mean_ann := mclapply(.SD, mean, na.rm = T, mc.cores = 15), .SDcols = "temperature", by = c("adm2_id")]
-dt[, mmt_tmrel := 35.81728 * exp(-exp(-0.0630098 * (mean_ann - 4.76978)))]
-dt[, mmt_dif := mmt - mmt_tmrel]
-quantile(dt$mmt_dif, probs=c(.01,.05,.1,.25,.5,.75,.9,.95,.99), na.rm = T)
-
-
-mean_lag_30 <- function(i, data) {
-  is.near <- as.numeric(data$date[i] - data$date) >= 0 & as.numeric(data$date[i] - data$date) < 30
-  mean(data$temperature[is.near], na.rm = T)
-} 
